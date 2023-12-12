@@ -1,0 +1,24 @@
+[package]
+name = "nndi"
+description = "Totally not a NDI protocol implementation in Rust. "
+documentation = "https://docs.rs/nndi"
+repository = "https://github.com/Nurrl/nndi"
+readme = "README.md"
+license = "GPL-3.0"
+keywords = ["ndi", "sender", "receiver"]
+authors = ["Maya the bee <15341887+Nurrl@users.noreply.github.com>"]
+version = "0.0.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[package.metadata.docs.rs]
+
+# Whether to pass `--all-features` to Cargo (default: false)
+all-features = true
+
+# Enable unstable features in the documentation
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+thiserror = "1.0.50"
