@@ -8,7 +8,7 @@
     clippy::undocumented_unsafe_blocks
 )]
 
-pub const SERVICE_TYPE: &str = "_ndi._tcp.local.";
+const SERVICE_TYPE: &str = "_ndi._tcp.local.";
 
 mod error;
 pub use error::{Error, Result};

@@ -11,10 +11,10 @@ pub enum Error {
     Mdns(#[from] mdns_sd::Error),
 
     #[error("Machine hostname must be UTF-8 encoded: {0}")]
-    Hostname(#[from] std::str::Utf8Error),
+    Hostname(std::str::Utf8Error),
 
     #[error(transparent)]
-    Binary(#[from] binrw::Error),
+    Frame(#[from] binrw::Error),
 }
 
 /// A handy [`std::result::Result`] type alias bounding the [`enum@Error`] struct as `E`.
