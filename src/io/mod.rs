@@ -23,7 +23,15 @@ impl Frame {
     pub fn unpack(mut self) -> Vec<u8> {
         let scrambler = Scrambler::identify(self.version, &self.frame_type);
 
-        scrambler.unscramble(&mut self.data[..], self.header_size + self.payload_len);
+        match self.frame_type {
+            FrameType::Text => {
+                scrambler.unscramble(&mut self.data[..], self.header_size + self.payload_len)
+            }
+            _ => scrambler.unscramble(
+                &mut self.data[..self.header_size as usize],
+                self.header_size + self.payload_len,
+            ),
+        }
 
         self.data
     }
