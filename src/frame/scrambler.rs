@@ -126,7 +126,7 @@ impl Scrambler {
     pub fn detect(frame: &Frame) -> Self {
         match &frame.frame_type {
             FrameType::Video if frame.version > 3 => Self::Type2,
-            FrameType::Audio | FrameType::Metadata if frame.version > 2 => Self::Type2,
+            FrameType::Audio | FrameType::Text if frame.version > 2 => Self::Type2,
             _ => Self::Type1,
         }
     }
@@ -162,6 +162,7 @@ mod tests {
             99, 222, 42, 52, 36, 25, 171, 99, 145, 32, 129, 178, 177, 126, 132, 155, 7, 107, 25,
             174, 39, 175, 188,
         ];
+
         let expected = [
             0, 0, 0, 0, 0, 0, 0, 0, 60, 110, 100, 105, 95, 118, 101, 114, 115, 105, 111, 110, 32,
             116, 101, 120, 116, 61, 34, 51, 34, 32, 118, 105, 100, 101, 111, 61, 34, 53, 34, 32,

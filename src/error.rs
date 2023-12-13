@@ -15,6 +15,9 @@ pub enum Error {
 
     #[error(transparent)]
     Frame(#[from] binrw::Error),
+
+    #[error(transparent)]
+    Xml(#[from] quick_xml::DeError),
 }
 
 /// A handy [`std::result::Result`] type alias bounding the [`enum@Error`] struct as `E`.

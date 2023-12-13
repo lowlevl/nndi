@@ -23,6 +23,10 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 tracing = "0.1.40"
 thiserror = "1.0.50"
+
 binrw = "0.13.3"
+serde = { version = "1.0.193", features = ["derive"] }
+quick-xml = { version = "0.31.0", features = ["serialize"] }
+
 mdns-sd = "0.10.1"
 gethostname = "0.4.3"

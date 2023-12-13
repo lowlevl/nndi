@@ -13,5 +13,7 @@ const SERVICE_TYPE: &str = "_ndi._tcp.local.";
 mod error;
 pub use error::{Error, Result};
 
-pub mod frame;
+mod frame;
+
+pub mod msg;
 pub mod send;

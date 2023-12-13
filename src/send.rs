@@ -7,7 +7,11 @@ use std::{
 use binrw::BinRead;
 use mdns_sd::{ServiceDaemon, ServiceInfo, UnregisterStatus};
 
-use crate::{frame::Frame, Error, Result};
+use crate::{
+    frame::Frame,
+    msg::{info::Info, Msg},
+    Error, Result,
+};
 
 pub struct Send {
     name: String,
@@ -48,7 +52,7 @@ impl Send {
                     }
                     Ok(stream) => {
                         if let Err(err) = Self::peer(stream) {
-                            tracing::error!("Error while handle peer: {err}");
+                            tracing::error!("Error while handling peer: {err}");
                         }
                     }
                 }
@@ -61,16 +65,27 @@ impl Send {
     fn peer(stream: TcpStream) -> Result<()> {
         tracing::info!("New peer connected from `{}`", stream.peer_addr()?);
 
-        let mut stream = binrw::io::NoSeek::new(stream);
+        let mut stream = binrw::io::NoSeek::new(&stream);
 
         loop {
             let frame = Frame::read(&mut stream)?;
-            let unpacked = frame.unpack();
 
-            tracing::debug!(
-                "Received greeting from peer: {}",
-                String::from_utf8_lossy(&unpacked)
-            );
+            match frame.unpack()? {
+                Msg::Video(_) | Msg::Audio(_) => (),
+                Msg::Text(text) => {
+                    let text = text.into_inner();
+
+                    let Ok(info) =
+                        quick_xml::de::from_reader::<_, Info>(&mut std::io::Cursor::new(&text))
+                    else {
+                        tracing::warn!("Unhandled information: {}", String::from_utf8_lossy(&text));
+
+                        continue;
+                    };
+
+                    tracing::warn!("Received information: {info:?}");
+                }
+            }
         }
     }
 }
