@@ -24,7 +24,7 @@ impl Frame {
         let scrambler = Scrambler::identify(self.version, &self.frame_type);
 
         match self.frame_type {
-            FrameType::Text => {
+            FrameType::Metadata => {
                 scrambler.unscramble(&mut self.data[..], self.header_size + self.payload_len)
             }
             _ => scrambler.unscramble(
@@ -42,5 +42,5 @@ impl Frame {
 pub enum FrameType {
     Video = 0,
     Audio,
-    Text,
+    Metadata,
 }

@@ -62,10 +62,13 @@ impl Send {
         tracing::info!("New peer connected from `{}`", stream.peer_addr()?);
 
         let mut stream = binrw::io::NoSeek::new(stream);
-        let message = Frame::read(&mut stream)?;
+        let frame = Frame::read(&mut stream)?;
 
-        let unpacked = message.unpack();
+        tracing::trace!("Packed frame data: {:?}", frame.data);
 
+        let unpacked = frame.unpack();
+
+        tracing::trace!("Unpacked frame data: {unpacked:?}");
         tracing::debug!(
             "Received greeting from peer: {}",
             String::from_utf8_lossy(&unpacked)
