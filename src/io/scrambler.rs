@@ -1,5 +1,13 @@
 use super::FrameType;
 
+#[cfg(doc)]
+use super::Frame;
+
+/// An implementation of the _scrambling_ & _unscrambling_
+/// mechanism present in [`Frame`]s.
+///
+/// Heavily inspired by the work done by the VLC team
+/// on their **libndi**, [see code](https://code.videolan.org/jbk/libndi/-/blob/c14b40caafb26a02249f062e7f907ceaa53c1b74/libndi.c#L48-L175).
 pub enum Scrambler {
     Type1,
     Type2,
@@ -27,11 +35,51 @@ impl Scrambler {
     }
 
     pub fn unscramble(&self, buf: &mut [u8], mut seed: u32) {
-        match self {
-            Self::Type1 => unimplemented!(),
-            Self::Type2 => {
-                let len = buf.len();
+        let len = buf.len();
 
+        match self {
+            Self::Type1 => {
+                let seed64 = ((seed as u64) << 32) | seed as u64;
+                let mut seed1 = seed64 ^ 0xb711674bd24f4b24;
+                let mut seed2 = seed64 ^ 0xb080d84f1fe3bf44;
+
+                if len >= 8 {
+                    let mut temp;
+
+                    for chunk in buf.chunks_exact_mut(8) {
+                        let mut blob = u64::from_ne_bytes(
+                            chunk
+                                .try_into()
+                                .expect("Vec::chunks_exact broke invariants"),
+                        );
+
+                        temp = seed1;
+                        seed1 = seed2;
+
+                        temp ^= temp << 23;
+                        temp = ((seed1 >> 9 ^ temp) >> 17) ^ temp ^ seed1;
+                        blob ^= temp.wrapping_add(seed1);
+                        seed2 = temp ^ blob;
+
+                        chunk.copy_from_slice(&blob.to_ne_bytes());
+                    }
+                }
+
+                let remainder = &mut buf[len - len % 8..];
+                if !remainder.is_empty() {
+                    let mut blob = remainder.to_vec();
+                    blob.resize(8, 0);
+                    let mut blob =
+                        u64::from_ne_bytes(blob.try_into().expect("Vec::resize broke invariants"));
+
+                    seed1 ^= seed1 << 23;
+                    seed1 = ((seed2 >> 9 ^ seed1) >> 17) ^ seed1 ^ seed2;
+                    blob ^= seed1 + seed2;
+
+                    remainder.copy_from_slice(&blob.to_ne_bytes()[..remainder.len()]);
+                }
+            }
+            Self::Type2 => {
                 if len >= 8 {
                     let mut temp;
 
@@ -59,8 +107,12 @@ impl Scrambler {
                     }
                 }
 
-                for idx in 0..len.min(Self::XOR_TABLE.len()) {
-                    buf[idx] ^= Self::XOR_TABLE[idx];
+                for (idx, byte) in buf
+                    .iter_mut()
+                    .enumerate()
+                    .take(len.min(Self::XOR_TABLE.len()))
+                {
+                    *byte ^= Self::XOR_TABLE[idx];
                 }
             }
         }

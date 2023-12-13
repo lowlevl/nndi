@@ -6,6 +6,7 @@ pub use scrambler::Scrambler;
 #[derive(Debug, BinRead, BinWrite)]
 #[brw(little)]
 pub struct Frame {
+    #[br(map(|version: u16| version & 0x7fff))] // FIXME: Handle when the MSB is `0`
     pub version: u16,
 
     pub frame_type: FrameType,
@@ -23,20 +24,6 @@ impl Frame {
         let scrambler = Scrambler::identify(self.version, &self.frame_type);
 
         scrambler.unscramble(&mut self.data[..], self.header_size + self.payload_len);
-
-        tracing::warn!(
-            "Unpacked: {:?} ({})",
-            self.data,
-            String::from_utf8_lossy(&self.data)
-        );
-
-        scrambler.unscramble(&mut self.data[..], self.header_size + self.payload_len);
-
-        tracing::warn!(
-            "Repacked: {:?} ({})",
-            self.data,
-            String::from_utf8_lossy(&self.data)
-        );
 
         self.data
     }

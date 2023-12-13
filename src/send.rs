@@ -64,13 +64,16 @@ impl Send {
         let mut stream = binrw::io::NoSeek::new(stream);
         let message = Frame::read(&mut stream)?;
 
-        tracing::warn!("Message: {message:?}");
-
         let unpacked = message.unpack();
 
-        loop {}
+        tracing::debug!(
+            "Received greeting from peer: {}",
+            String::from_utf8_lossy(&unpacked)
+        );
 
-        Ok(())
+        loop {
+            std::thread::sleep(std::time::Duration::MAX);
+        }
     }
 }
 
