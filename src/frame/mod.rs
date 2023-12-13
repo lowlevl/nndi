@@ -21,7 +21,7 @@ pub struct Frame {
 
 impl Frame {
     pub fn unpack(mut self) -> Vec<u8> {
-        let scrambler = Scrambler::identify(self.version, &self.frame_type);
+        let scrambler = Scrambler::detect(&self);
 
         match self.frame_type {
             FrameType::Metadata => {

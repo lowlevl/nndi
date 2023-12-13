@@ -7,7 +7,7 @@ use std::{
 use binrw::BinRead;
 use mdns_sd::{ServiceDaemon, ServiceInfo, UnregisterStatus};
 
-use crate::{io::Frame, Error, Result};
+use crate::{frame::Frame, Error, Result};
 
 pub struct Send {
     name: String,
@@ -62,20 +62,15 @@ impl Send {
         tracing::info!("New peer connected from `{}`", stream.peer_addr()?);
 
         let mut stream = binrw::io::NoSeek::new(stream);
-        let frame = Frame::read(&mut stream)?;
-
-        tracing::trace!("Packed frame data: {:?}", frame.data);
-
-        let unpacked = frame.unpack();
-
-        tracing::trace!("Unpacked frame data: {unpacked:?}");
-        tracing::debug!(
-            "Received greeting from peer: {}",
-            String::from_utf8_lossy(&unpacked)
-        );
 
         loop {
-            std::thread::sleep(std::time::Duration::MAX);
+            let frame = Frame::read(&mut stream)?;
+            let unpacked = frame.unpack();
+
+            tracing::debug!(
+                "Received greeting from peer: {}",
+                String::from_utf8_lossy(&unpacked)
+            );
         }
     }
 }
@@ -96,9 +91,7 @@ impl Drop for Send {
                 self.name
             ),
 
-            _ => (),
+            _ => tracing::debug!("Unregistered mDNS service `{}`", self.name),
         }
-
-        tracing::debug!("Unregistered mDNS service `{}`", self.name);
     }
 }

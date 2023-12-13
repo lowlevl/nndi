@@ -1,7 +1,4 @@
-use super::FrameType;
-
-#[cfg(doc)]
-use super::Frame;
+use super::{Frame, FrameType};
 
 /// An implementation of the _scrambling_ & _unscrambling_
 /// mechanism present in [`Frame`]s.
@@ -25,16 +22,6 @@ impl Scrambler {
         0x77, 0x2e, 0x74, 0x6b, 0x2f, 0x6e, 0x64, 0x69, 0x73, 0x64, 0x6b, 0x5f, 0x6c, 0x69, 0x63,
         0x65, 0x6e, 0x73, 0x65, 0x2f, 0x00, 0x00, 0x00,
     ];
-
-    /// Select the scrambler algorithm from the version
-    /// of the [`Frame`] and the [`FrameType`].
-    pub fn identify(version: u16, message_type: &FrameType) -> Self {
-        match message_type {
-            FrameType::Video if version > 3 => Self::Type2,
-            FrameType::Audio | FrameType::Metadata if version > 2 => Self::Type2,
-            _ => Self::Type1,
-        }
-    }
 
     fn type1(buf: &mut [u8], seed: u32, scramble: bool) {
         let len = buf.len();
@@ -134,6 +121,17 @@ impl Scrambler {
         }
     }
 
+    /// Detect the scrambler algorithm from the version
+    /// of the [`Frame`] and the [`FrameType`].
+    pub fn detect(frame: &Frame) -> Self {
+        match &frame.frame_type {
+            FrameType::Video if frame.version > 3 => Self::Type2,
+            FrameType::Audio | FrameType::Metadata if frame.version > 2 => Self::Type2,
+            _ => Self::Type1,
+        }
+    }
+
+    /// Unscramble the `buf` in-place from the provided `seed`.
     pub fn unscramble(&self, buf: &mut [u8], seed: u32) {
         match self {
             Self::Type1 => Self::type1(buf, seed, false),
@@ -141,6 +139,7 @@ impl Scrambler {
         }
     }
 
+    /// Scramble the `buf` in-place with the provided `seed`.
     pub fn scramble(&self, buf: &mut [u8], seed: u32) {
         match self {
             Self::Type1 => Self::type1(buf, seed, true),
