@@ -21,4 +21,8 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
+tracing = "0.1.40"
 thiserror = "1.0.50"
+binrw = "0.13.3"
+mdns-sd = "0.10.1"
+gethostname = "0.4.3"
