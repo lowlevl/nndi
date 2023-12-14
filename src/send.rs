@@ -9,7 +9,7 @@ use mdns_sd::{ServiceDaemon, ServiceInfo, UnregisterStatus};
 
 use crate::{
     frame::Frame,
-    msg::{metadata::Metadata, video::VideoSpec, Msg, Payload},
+    msg::{metadata::Metadata, video, Msg, Wrap},
     Error, Result,
 };
 
@@ -67,8 +67,8 @@ impl Send {
 
         let mut stream = binrw::io::NoSeek::new(&stream);
 
-        Frame::pack(&Msg::Video(Payload::new(
-            VideoSpec {
+        let msg = Msg::Video(Wrap::new(
+            video::Spec {
                 fourcc: crate::msg::video::FourCCVideoType::RGBX,
                 width: 1,
                 height: 1,
@@ -76,8 +76,8 @@ impl Send {
                 fps_den: 1,
             },
             binrw::NullString(vec![u8::MAX, 0, 0]),
-        )))?
-        .write(&mut stream)?;
+        ));
+        Frame::pack(&msg)?.write(&mut stream)?;
 
         loop {
             let frame = Frame::read(&mut stream)?;

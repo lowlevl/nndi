@@ -1,5 +1,15 @@
 use binrw::{BinRead, BinWrite};
 
+#[derive(Debug, BinRead, BinWrite)]
+#[brw(little)]
+pub struct Spec {
+    pub fourcc: FourCCVideoType,
+    pub width: u32,
+    pub height: u32,
+    pub fps_num: u32,
+    pub fps_den: u32,
+}
+
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, BinRead, BinWrite)]
 pub enum FourCCVideoType {
@@ -35,14 +45,4 @@ pub enum FourCCVideoType {
 
     #[brw(magic = b"RGBX")]
     RGBX,
-}
-
-#[derive(Debug, BinRead, BinWrite)]
-#[brw(little)]
-pub struct VideoSpec {
-    pub fourcc: FourCCVideoType,
-    pub width: u32,
-    pub height: u32,
-    pub fps_num: u32,
-    pub fps_den: u32,
 }

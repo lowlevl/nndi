@@ -4,27 +4,9 @@ mod scrambler;
 pub use scrambler::Scrambler;
 
 use crate::{
-    msg::{Msg, Payload},
+    msg::{Msg, Wrap},
     Result,
 };
-
-#[derive(Debug, BinRead, BinWrite)]
-#[brw(repr(u16))]
-pub enum FrameType {
-    Video = 0,
-    Audio,
-    Text,
-}
-
-impl FrameType {
-    pub fn version(&self) -> u16 {
-        match self {
-            Self::Video => 3,
-            Self::Audio => 2,
-            Self::Text => 2,
-        }
-    }
-}
 
 #[derive(Debug, BinRead, BinWrite)]
 #[brw(little)]
@@ -62,9 +44,9 @@ impl Frame {
         }
 
         Ok(match self.frame_type {
-            FrameType::Video => Msg::Video(Payload::from_frame(self)?),
-            FrameType::Audio => Msg::Audio(Payload::from_frame(self)?),
-            FrameType::Text => Msg::Text(Payload::from_frame(self)?),
+            FrameType::Video => Msg::Video(Wrap::from_frame(self)?),
+            FrameType::Audio => Msg::Audio(Wrap::from_frame(self)?),
+            FrameType::Text => Msg::Text(Wrap::from_frame(self)?),
         })
     }
 
@@ -115,5 +97,23 @@ impl Frame {
             payload_size,
             data,
         })
+    }
+}
+
+#[derive(Debug, BinRead, BinWrite)]
+#[brw(repr(u16))]
+pub enum FrameType {
+    Video = 0,
+    Audio,
+    Text,
+}
+
+impl FrameType {
+    pub fn version(&self) -> u16 {
+        match self {
+            Self::Video => 3,
+            Self::Audio => 2,
+            Self::Text => 2,
+        }
     }
 }
