@@ -3,7 +3,28 @@ use binrw::{BinRead, BinWrite};
 mod scrambler;
 pub use scrambler::Scrambler;
 
-use crate::{msg::Msg, Result};
+use crate::{
+    msg::{Msg, Payload},
+    Result,
+};
+
+#[derive(Debug, BinRead, BinWrite)]
+#[brw(repr(u16))]
+pub enum FrameType {
+    Video = 0,
+    Audio,
+    Text,
+}
+
+impl FrameType {
+    pub fn version(&self) -> u16 {
+        match self {
+            Self::Video => 3,
+            Self::Audio => 2,
+            Self::Text => 2,
+        }
+    }
+}
 
 #[derive(Debug, BinRead, BinWrite)]
 #[brw(little)]
@@ -19,41 +40,80 @@ pub struct Frame {
     pub header_size: u32,
 
     /// Size of the payload, after the header, in the data segment.
-    pub payload_len: u32,
+    pub payload_size: u32,
 
     /// The payload of the frame.
-    #[br(count = header_size + payload_len)]
+    #[br(count = header_size + payload_size)]
     pub data: Vec<u8>,
 }
 
 impl Frame {
     pub fn unpack(mut self) -> Result<Msg> {
-        let scrambler = Scrambler::detect(&self);
+        let scrambler = Scrambler::detect(&self.frame_type, self.version);
 
         match self.frame_type {
             FrameType::Text => {
-                scrambler.unscramble(&mut self.data[..], self.header_size + self.payload_len)
+                scrambler.unscramble(&mut self.data[..], self.header_size + self.payload_size)
             }
             _ => scrambler.unscramble(
                 &mut self.data[..self.header_size as usize],
-                self.header_size + self.payload_len,
+                self.header_size + self.payload_size,
             ),
         }
 
-        let mut data = std::io::Cursor::new(self.data);
-
         Ok(match self.frame_type {
-            FrameType::Video => Msg::Video(BinRead::read(&mut data)?),
-            FrameType::Audio => Msg::Audio(BinRead::read(&mut data)?),
-            FrameType::Text => Msg::Text(BinRead::read(&mut data)?),
+            FrameType::Video => Msg::Video(Payload::from_frame(self)?),
+            FrameType::Audio => Msg::Audio(Payload::from_frame(self)?),
+            FrameType::Text => Msg::Text(Payload::from_frame(self)?),
         })
     }
-}
 
-#[derive(Debug, BinRead, BinWrite)]
-#[brw(repr(u16))]
-pub enum FrameType {
-    Video = 0,
-    Audio,
-    Text,
+    pub fn pack(msg: &Msg) -> Result<Self> {
+        let (mut header, mut payload) = (Vec::new(), Vec::new());
+
+        let frame_type = match msg {
+            Msg::Video(inner) => {
+                inner.header.write(&mut std::io::Cursor::new(&mut header))?;
+                inner.data.write(&mut std::io::Cursor::new(&mut payload))?;
+
+                FrameType::Video
+            }
+            Msg::Audio(inner) => {
+                inner.header.write(&mut std::io::Cursor::new(&mut header))?;
+                inner.data.write(&mut std::io::Cursor::new(&mut payload))?;
+
+                FrameType::Audio
+            }
+            Msg::Text(inner) => {
+                inner.header.write(&mut std::io::Cursor::new(&mut header))?;
+                inner.data.write(&mut std::io::Cursor::new(&mut payload))?;
+
+                FrameType::Text
+            }
+        };
+        let version = frame_type.version();
+        let header_size = header.len() as u32;
+        let payload_size = payload.len() as u32;
+
+        header.append(&mut payload);
+        let mut data = header;
+
+        let scrambler = Scrambler::detect(&frame_type, version);
+
+        match frame_type {
+            FrameType::Text => scrambler.scramble(&mut data[..], header_size + payload_size),
+            _ => scrambler.scramble(
+                &mut data[..header_size as usize],
+                header_size + payload_size,
+            ),
+        }
+
+        Ok(Frame {
+            version,
+            frame_type,
+            header_size,
+            payload_size,
+            data,
+        })
+    }
 }

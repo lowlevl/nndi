@@ -1,4 +1,7 @@
-use super::{Frame, FrameType};
+use super::FrameType;
+
+#[cfg(doc)]
+use super::Frame;
 
 /// An implementation of the _scrambling_ & _unscrambling_
 /// mechanism present in [`Frame`]s.
@@ -123,10 +126,10 @@ impl Scrambler {
 
     /// Detect the scrambler algorithm from the version
     /// of the [`Frame`] and the [`FrameType`].
-    pub fn detect(frame: &Frame) -> Self {
-        match &frame.frame_type {
-            FrameType::Video if frame.version > 3 => Self::Type2,
-            FrameType::Audio | FrameType::Text if frame.version > 2 => Self::Type2,
+    pub fn detect(frame_type: &FrameType, version: u16) -> Self {
+        match &frame_type {
+            FrameType::Video if version > 3 => Self::Type2,
+            FrameType::Audio | FrameType::Text if version > 2 => Self::Type2,
             _ => Self::Type1,
         }
     }

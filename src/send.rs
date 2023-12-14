@@ -4,12 +4,12 @@ use std::{
     str,
 };
 
-use binrw::BinRead;
+use binrw::{BinRead, BinWrite};
 use mdns_sd::{ServiceDaemon, ServiceInfo, UnregisterStatus};
 
 use crate::{
     frame::Frame,
-    msg::{info::Info, Msg},
+    msg::{metadata::Metadata, video::VideoSpec, Msg, Payload},
     Error, Result,
 };
 
@@ -67,16 +67,28 @@ impl Send {
 
         let mut stream = binrw::io::NoSeek::new(&stream);
 
+        Frame::pack(&Msg::Video(Payload::new(
+            VideoSpec {
+                fourcc: crate::msg::video::FourCCVideoType::RGBX,
+                width: 1,
+                height: 1,
+                fps_num: 30,
+                fps_den: 1,
+            },
+            binrw::NullString(vec![u8::MAX, 0, 0]),
+        )))?
+        .write(&mut stream)?;
+
         loop {
             let frame = Frame::read(&mut stream)?;
 
             match frame.unpack()? {
                 Msg::Video(_) | Msg::Audio(_) => (),
                 Msg::Text(text) => {
-                    let text = text.into_inner();
+                    let text = text.data.0;
 
                     let Ok(info) =
-                        quick_xml::de::from_reader::<_, Info>(&mut std::io::Cursor::new(&text))
+                        quick_xml::de::from_reader::<_, Metadata>(&mut std::io::Cursor::new(&text))
                     else {
                         tracing::warn!("Unhandled information: {}", String::from_utf8_lossy(&text));
 
