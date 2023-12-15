@@ -79,6 +79,16 @@ impl Scrambler {
     fn type2(buf: &mut [u8], mut seed: u32, scramble: bool) {
         let len = buf.len();
 
+        if scramble {
+            for (idx, byte) in buf
+                .iter_mut()
+                .enumerate()
+                .take(len.min(Self::XOR_TABLE.len()))
+            {
+                *byte ^= Self::XOR_TABLE[idx];
+            }
+        }
+
         if len >= 8 {
             let mut temp;
 
@@ -90,24 +100,21 @@ impl Scrambler {
                 );
 
                 temp = seed as i64;
+                let key = (temp
+                    .wrapping_mul(len as i64)
+                    .wrapping_mul(-0x61c8864680b583eb) as u64)
+                    .wrapping_add(0xc42bd7dee6270f1b);
 
                 if scramble {
-                    blob = ((((temp
-                        .wrapping_mul(len as i64)
-                        .wrapping_mul(-0x61c8864680b583eb) as u64)
-                        .wrapping_add(0xc42bd7dee6270f1b)
-                        ^ blob) as i64)
-                        .wrapping_mul(-0xe217c1e66c88cc3) as u64)
-                        .wrapping_add(0x2daa8c593b1b4591);
+                    todo!("Inverse of unscrambling assignation");
+                    // blob = (((blob ^ key) as i64).wrapping_mul(-0xe217c1e66c88cc3) as u64)
+                    //     .wrapping_add(0x2daa8c593b1b4591);
+
                     seed = (blob & 0xffffffff) as u32;
                 } else {
                     seed = (blob & 0xffffffff) as u32;
-                    blob = ((((temp
-                        .wrapping_mul(len as i64)
-                        .wrapping_mul(-0x61c8864680b583eb) as u64)
-                        .wrapping_add(0xc42bd7dee6270f1b)
-                        ^ blob) as i64)
-                        .wrapping_mul(-0xe217c1e66c88cc3) as u64)
+
+                    blob = (((blob ^ key) as i64).wrapping_mul(-0xe217c1e66c88cc3) as u64)
                         .wrapping_add(0x2daa8c593b1b4591);
                 }
 
@@ -115,12 +122,14 @@ impl Scrambler {
             }
         }
 
-        for (idx, byte) in buf
-            .iter_mut()
-            .enumerate()
-            .take(len.min(Self::XOR_TABLE.len()))
-        {
-            *byte ^= Self::XOR_TABLE[idx];
+        if !scramble {
+            for (idx, byte) in buf
+                .iter_mut()
+                .enumerate()
+                .take(len.min(Self::XOR_TABLE.len()))
+            {
+                *byte ^= Self::XOR_TABLE[idx];
+            }
         }
     }
 
@@ -146,8 +155,7 @@ impl Scrambler {
     pub fn scramble(&self, buf: &mut [u8], seed: u32) {
         match self {
             Self::Type1 => Self::type1(buf, seed, true),
-            Self::Type2 => unimplemented!(),
-            // Self::Type2 => Self::type2(buf, seed, true),
+            Self::Type2 => Self::type2(buf, seed, true),
         }
     }
 }
@@ -204,14 +212,42 @@ mod tests {
     }
 
     #[test]
-    fn it_processes_type2() {
-        let mut buf = [0; 128];
+    fn it_unscrambles_type2() {
+        let mut scrambled = [
+            233, 100, 241, 22, 71, 237, 67, 214, 159, 81, 45, 219, 196, 196, 115, 101, 193, 217,
+            237, 85, 56, 236, 206, 163, 253, 59, 47, 110, 105, 27, 24, 56, 91, 158, 144, 69, 143,
+            214, 199, 1, 60, 218, 125, 131, 231, 185, 68, 99, 41, 157, 66, 169, 210, 17, 87, 62,
+            105,
+        ];
+        let expected = [
+            83, 72, 81, 50, 32, 2, 0, 0, 20, 2, 0, 0, 24, 0, 0, 0, 1, 0, 0, 0, 67, 164, 130, 63, 0,
+            0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 122, 233, 121, 101, 0, 0, 0, 0, 62, 26,
+            146, 204, 10, 124, 60, 0, 0,
+        ];
+        let seed = 58786;
 
-        let seed = buf.len() as u32;
+        Scrambler::Type2.unscramble(&mut scrambled, seed);
 
-        Scrambler::Type2.scramble(&mut buf[..64], seed);
-        Scrambler::Type2.unscramble(&mut buf[..64], seed);
+        assert_eq!(scrambled, expected)
+    }
 
-        assert!(buf.iter().all(|byte| *byte == 0))
+    #[test]
+    fn it_scrambles_type2() {
+        let mut unscrambled = [
+            83, 72, 81, 50, 32, 2, 0, 0, 20, 2, 0, 0, 24, 0, 0, 0, 1, 0, 0, 0, 67, 164, 130, 63, 0,
+            0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 122, 233, 121, 101, 0, 0, 0, 0, 62, 26,
+            146, 204, 10, 124, 60, 0, 0,
+        ];
+        let expected = [
+            233, 100, 241, 22, 71, 237, 67, 214, 159, 81, 45, 219, 196, 196, 115, 101, 193, 217,
+            237, 85, 56, 236, 206, 163, 253, 59, 47, 110, 105, 27, 24, 56, 91, 158, 144, 69, 143,
+            214, 199, 1, 60, 218, 125, 131, 231, 185, 68, 99, 41, 157, 66, 169, 210, 17, 87, 62,
+            105,
+        ];
+        let seed = 58786;
+
+        Scrambler::Type2.scramble(&mut unscrambled, seed);
+
+        assert_eq!(unscrambled, expected)
     }
 }

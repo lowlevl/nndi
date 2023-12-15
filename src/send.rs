@@ -4,12 +4,12 @@ use std::{
     str,
 };
 
-use binrw::{BinRead, BinWrite};
+use binrw::BinRead;
 use mdns_sd::{ServiceDaemon, ServiceInfo, UnregisterStatus};
 
 use crate::{
     frame::Frame,
-    msg::{metadata::Metadata, video, Msg, Wrap},
+    msg::{metadata::Metadata, Msg},
     Error, Result,
 };
 
@@ -66,18 +66,6 @@ impl Send {
         tracing::info!("New peer connected from `{}`", stream.peer_addr()?);
 
         let mut stream = binrw::io::NoSeek::new(&stream);
-
-        let msg = Msg::Video(Wrap::new(
-            video::Spec {
-                fourcc: crate::msg::video::FourCCVideoType::RGBX,
-                width: 1,
-                height: 1,
-                fps_num: 30,
-                fps_den: 1,
-            },
-            binrw::NullString(vec![u8::MAX, 0, 0]),
-        ));
-        Frame::pack(&msg)?.write(&mut stream)?;
 
         loop {
             let frame = Frame::read(&mut stream)?;
