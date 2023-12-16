@@ -93,7 +93,7 @@ impl Scrambler {
             let mut temp;
 
             for chunk in buf.chunks_exact_mut(8) {
-                let mut blob = u64::from_ne_bytes(
+                let mut blob = u64::from_le_bytes(
                     chunk
                         .try_into()
                         .expect("Vec::chunks_exact broke invariants"),
@@ -106,19 +106,20 @@ impl Scrambler {
                     .wrapping_add(0xc42bd7dee6270f1b);
 
                 if scramble {
-                    todo!("Inverse of unscrambling assignation");
-                    // blob = (((blob ^ key) as i64).wrapping_mul(-0xe217c1e66c88cc3) as u64)
-                    //     .wrapping_add(0x2daa8c593b1b4591);
+                    blob = blob.wrapping_sub(0x2daa8c593b1b4591);
+                    blob = (blob as i64).wrapping_mul(-0x61c8864680b583eb) as u64;
+                    blob ^= key;
 
                     seed = (blob & 0xffffffff) as u32;
                 } else {
                     seed = (blob & 0xffffffff) as u32;
 
-                    blob = (((blob ^ key) as i64).wrapping_mul(-0xe217c1e66c88cc3) as u64)
-                        .wrapping_add(0x2daa8c593b1b4591);
+                    blob ^= key;
+                    blob = (blob as i64).wrapping_mul(-0xe217c1e66c88cc3) as u64;
+                    blob = blob.wrapping_add(0x2daa8c593b1b4591);
                 }
 
-                chunk.copy_from_slice(&blob.to_ne_bytes());
+                chunk.copy_from_slice(&blob.to_le_bytes());
             }
         }
 
