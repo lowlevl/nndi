@@ -14,8 +14,8 @@ use crate::{
 };
 
 pub struct Send {
-    name: String,
     mdns: ServiceDaemon,
+    name: String,
 }
 
 impl Send {
@@ -59,7 +59,7 @@ impl Send {
             }
         });
 
-        Ok(Self { name, mdns })
+        Ok(Self { mdns, name })
     }
 
     fn peer(stream: TcpStream) -> Result<()> {
@@ -107,6 +107,10 @@ impl Drop for Send {
             ),
 
             _ => tracing::debug!("Unregistered mDNS service `{}`", self.name),
+        }
+
+        if let Err(err) = self.mdns.shutdown() {
+            tracing::error!("Error while shutting down the mDNS advertisement thread: {err}");
         }
     }
 }

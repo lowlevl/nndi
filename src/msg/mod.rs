@@ -8,18 +8,18 @@ pub mod video;
 
 #[derive(Debug)]
 pub enum Msg {
-    Video(Wrap<video::Spec, binrw::NullString>),
-    Audio(Wrap<audio::Spec, binrw::NullString>),
-    Text(Wrap<(), binrw::NullString>),
+    Video(video::Pack),
+    Audio(audio::Pack),
+    Text(metadata::Pack),
 }
 
 #[derive(Debug, Default)]
-pub struct Wrap<H, D> {
+pub struct Pack<H, D> {
     pub header: H,
     pub data: D,
 }
 
-impl<H, D> Wrap<H, D> {
+impl<H, D> Pack<H, D> {
     pub fn new(header: H, data: impl Into<D>) -> Self {
         Self {
             header,
@@ -28,7 +28,7 @@ impl<H, D> Wrap<H, D> {
     }
 }
 
-impl<H: Default, D> Wrap<H, D> {
+impl<H: Default, D> Pack<H, D> {
     pub fn data(data: impl Into<D>) -> Self {
         Self {
             header: Default::default(),
@@ -37,7 +37,7 @@ impl<H: Default, D> Wrap<H, D> {
     }
 }
 
-impl<H, D> Wrap<H, D>
+impl<H, D> Pack<H, D>
 where
     H: for<'a> BinRead<Args<'a> = ()> + ReadEndian,
     D: for<'a> BinRead<Args<'a> = ()> + ReadEndian,

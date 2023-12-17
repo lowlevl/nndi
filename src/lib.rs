@@ -16,4 +16,6 @@ pub use error::{Error, Result};
 mod frame;
 
 pub mod msg;
+pub mod recv;
+pub mod scan;
 pub mod send;

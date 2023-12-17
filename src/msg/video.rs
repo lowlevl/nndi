@@ -1,5 +1,7 @@
 use binrw::{BinRead, BinWrite};
 
+pub type Pack = super::Pack<Spec, binrw::NullString>;
+
 #[derive(Debug, BinRead, BinWrite)]
 #[brw(little)]
 pub struct Spec {
@@ -8,41 +10,32 @@ pub struct Spec {
     pub height: u32,
     pub fps_num: u32,
     pub fps_den: u32,
+    pub aspect_ratio: f32,
+    pub _1: u32,
+    pub frame_format: FrameFormat,
+    pub _2: u32,
+    pub _3: u32,
+    pub timecode: i64,
+    pub _4: u32,
+    pub _5: u32,
+    pub metadata: binrw::NullString,
 }
 
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, BinRead, BinWrite)]
 pub enum FourCCVideoType {
-    #[brw(magic = b"UYBY")]
-    UYVY,
+    #[brw(magic = b"SHQ2")]
+    SHQ2,
 
-    #[brw(magic = b"UYVA")]
-    UYVA,
+    #[brw(magic = b"SHQ7")]
+    SHQ7,
+}
 
-    #[brw(magic = b"P216")]
-    P216,
-
-    #[brw(magic = b"PA16")]
-    PA16,
-
-    #[brw(magic = b"YV12")]
-    YV12,
-
-    #[brw(magic = b"I420")]
-    I420,
-
-    #[brw(magic = b"NV12")]
-    NV12,
-
-    #[brw(magic = b"BGRA")]
-    BGRA,
-
-    #[brw(magic = b"BGRX")]
-    BGRX,
-
-    #[brw(magic = b"RGBA")]
-    RGBA,
-
-    #[brw(magic = b"RGBX")]
-    RGBX,
+#[derive(Debug, BinRead, BinWrite)]
+#[brw(repr = u32)]
+pub enum FrameFormat {
+    Interleaved = 0,
+    Progressive,
+    Field0,
+    Field1,
 }

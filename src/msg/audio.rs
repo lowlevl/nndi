@@ -1,5 +1,7 @@
 use binrw::{BinRead, BinWrite};
 
+pub type Pack = super::Pack<Spec, binrw::NullString>;
+
 #[derive(Debug, BinRead, BinWrite)]
 #[brw(little)]
 pub struct Spec {

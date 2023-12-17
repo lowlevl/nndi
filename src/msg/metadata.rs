@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+pub type Pack = super::Pack<(), binrw::NullString>;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Metadata {
     #[serde(rename = "ndi_version")]

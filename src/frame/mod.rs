@@ -4,7 +4,7 @@ mod scrambler;
 pub use scrambler::Scrambler;
 
 use crate::{
-    msg::{Msg, Wrap},
+    msg::{Msg, Pack},
     Result,
 };
 
@@ -44,9 +44,9 @@ impl Frame {
         }
 
         Ok(match self.frame_type {
-            FrameType::Video => Msg::Video(Wrap::from_frame(self)?),
-            FrameType::Audio => Msg::Audio(Wrap::from_frame(self)?),
-            FrameType::Text => Msg::Text(Wrap::from_frame(self)?),
+            FrameType::Video => Msg::Video(Pack::from_frame(self)?),
+            FrameType::Audio => Msg::Audio(Pack::from_frame(self)?),
+            FrameType::Text => Msg::Text(Pack::from_frame(self)?),
         })
     }
 
@@ -101,7 +101,7 @@ impl Frame {
 }
 
 #[derive(Debug, BinRead, BinWrite)]
-#[brw(repr(u16))]
+#[brw(repr = u16)]
 pub enum FrameType {
     Video = 0,
     Audio,
