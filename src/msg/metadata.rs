@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::Result;
+
 pub type Pack = super::Pack<(), binrw::NullString>;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -18,6 +20,14 @@ pub enum Metadata {
 
     #[serde(rename = "ndi_tally")]
     Tally(Tally),
+}
+
+impl Metadata {
+    pub fn from_pack(pack: &Pack) -> Result<Self> {
+        let mut text = std::io::Cursor::new(&pack.data.0);
+
+        Ok(quick_xml::de::from_reader::<_, Self>(&mut text)?)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -72,13 +72,12 @@ impl Send {
 
             match frame.unpack()? {
                 Msg::Video(_) | Msg::Audio(_) => (),
-                Msg::Text(text) => {
-                    let text = text.data.0;
-
-                    let Ok(info) =
-                        quick_xml::de::from_reader::<_, Metadata>(&mut std::io::Cursor::new(&text))
-                    else {
-                        tracing::warn!("Unhandled information: {}", String::from_utf8_lossy(&text));
+                Msg::Text(pack) => {
+                    let Ok(info) = Metadata::from_pack(&pack) else {
+                        tracing::warn!(
+                            "Unhandled information: {}",
+                            String::from_utf8_lossy(&pack.data)
+                        );
 
                         continue;
                     };

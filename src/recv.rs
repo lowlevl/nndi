@@ -60,12 +60,10 @@ impl Recv {
                         }
                     }
                     Msg::Text(pack) => {
-                        let mut text = std::io::Cursor::new(&pack.data.0);
-
-                        let Ok(info) = quick_xml::de::from_reader::<_, Metadata>(&mut text) else {
+                        let Ok(info) = Metadata::from_pack(&pack) else {
                             tracing::warn!(
                                 "Unhandled information: {}",
-                                String::from_utf8_lossy(text.into_inner())
+                                String::from_utf8_lossy(&pack.data)
                             );
 
                             continue;
