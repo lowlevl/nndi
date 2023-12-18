@@ -1,14 +1,18 @@
 use std::{
-    net::{SocketAddr, TcpStream},
+    net::{SocketAddr},
     thread,
 };
 
-use binrw::BinRead;
+
 use mdns_sd::ServiceInfo;
 
 use crate::{
-    frame::Frame,
-    msg::{audio, metadata::Metadata, video, Msg},
+    msg::{
+        audio,
+        metadata::{self, Metadata},
+        video, Msg,
+    },
+    stream::Stream,
     Result,
 };
 
@@ -20,13 +24,63 @@ pub struct Recv {
 impl Recv {
     pub fn new(service: &ServiceInfo, queue: usize) -> Result<Self> {
         let port = service.get_port();
-        let stream = TcpStream::connect(
+        let mut stream = Stream::connect(
             &*service
                 .get_addresses()
                 .iter()
                 .map(|addr| SocketAddr::new(*addr, port))
                 .collect::<Vec<_>>(),
         )?;
+
+        tracing::debug!(
+            "Connected to network source `{}@{}`",
+            service.get_fullname(),
+            stream.peer_addr()?
+        );
+
+        stream.send(&Msg::Text(
+            Metadata::Version(metadata::Version {
+                video: 5,
+                audio: 4,
+                text: 3,
+                sdk: crate::SDK_VERSION.into(),
+                platform: crate::SDK_PLATFORM.into(),
+            })
+            .to_pack()?,
+        ))?;
+
+        stream.send(&Msg::Text(
+            Metadata::Identify(metadata::Identify {
+                name: crate::name("receiver")?,
+            })
+            .to_pack()?,
+        ))?;
+
+        stream.send(&Msg::Text(
+            Metadata::Video(metadata::Video {
+                quality: metadata::VideoQuality::High,
+            })
+            .to_pack()?,
+        ))?;
+
+        stream.send(&Msg::Text(
+            Metadata::EnabledStreams(metadata::EnabledStreams {
+                video: true,
+                audio: true,
+                text: true,
+                shq_skip_block: true,
+                shq_short_dc: true,
+            })
+            .to_pack()?,
+        ))?;
+
+        stream.send(&Msg::Text(
+            Metadata::Tally(metadata::Tally {
+                on_preview: true,
+                on_program: true,
+            })
+            .to_pack()?,
+        ))?;
 
         let (videotx, video) = flume::bounded(queue);
         let (audiotx, audio) = flume::bounded(queue);
@@ -36,19 +90,17 @@ impl Recv {
     }
 
     fn task(
-        stream: TcpStream,
+        mut stream: Stream,
         video: flume::Sender<video::Pack>,
         audio: flume::Sender<audio::Pack>,
     ) {
-        let task = move || {
-            let mut stream = binrw::io::NoSeek::new(stream);
-
+        let mut task = move || {
             loop {
                 if video.is_disconnected() && audio.is_disconnected() {
                     break;
                 }
 
-                match Frame::read(&mut stream)?.unpack()? {
+                match stream.recv()? {
                     Msg::Video(pack) => {
                         if let Err(err) = video.try_send(pack) {
                             tracing::warn!("Dropped a video sample: {err}");
@@ -59,18 +111,7 @@ impl Recv {
                             tracing::warn!("Dropped an audio sample: {err}");
                         }
                     }
-                    Msg::Text(pack) => {
-                        let Ok(info) = Metadata::from_pack(&pack) else {
-                            tracing::warn!(
-                                "Unhandled information: {}",
-                                String::from_utf8_lossy(&pack.data)
-                            );
-
-                            continue;
-                        };
-
-                        tracing::warn!("Received information: {info:?}");
-                    }
+                    Msg::Text(_) => {}
                 }
             }
 
@@ -85,12 +126,12 @@ impl Recv {
     }
 
     /// Pop the next [`video::Spec`] from the queue, if present.
-    pub fn video(&self) -> Option<video::Pack> {
-        self.video.try_recv().ok()
+    pub fn video(&self) -> Result<video::Pack, flume::TryRecvError> {
+        self.video.try_recv()
     }
 
     /// Pop the next [`audio::Spec`] from the queue, if present.
-    pub fn audio(&self) -> Option<audio::Pack> {
-        self.audio.try_recv().ok()
+    pub fn audio(&self) -> Result<audio::Pack, flume::TryRecvError> {
+        self.audio.try_recv()
     }
 }

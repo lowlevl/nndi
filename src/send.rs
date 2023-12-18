@@ -1,16 +1,15 @@
 use std::{
-    net::{TcpListener, TcpStream},
-    os::unix::ffi::OsStrExt,
+    net::{TcpListener},
     str,
 };
 
-use binrw::BinRead;
+
 use mdns_sd::{ServiceDaemon, ServiceInfo, UnregisterStatus};
 
 use crate::{
-    frame::Frame,
     msg::{metadata::Metadata, Msg},
-    Error, Result,
+    stream::Stream,
+    Result,
 };
 
 pub struct Send {
@@ -21,17 +20,13 @@ pub struct Send {
 impl Send {
     pub fn new(name: &str, groups: Option<&[&str]>) -> Result<Self> {
         let groups = groups.unwrap_or(&["public"]).join(",");
-
-        let hostname = gethostname::gethostname();
-        let hostname = str::from_utf8(hostname.as_bytes()).map_err(Error::Hostname)?;
-
         let listener = TcpListener::bind("[::]:0")?;
 
         let mdns = ServiceDaemon::new()?;
         let service = ServiceInfo::new(
             super::SERVICE_TYPE,
-            &format!("{hostname} ({name})"),
-            hostname,
+            &crate::name(name)?,
+            &crate::hostname()?,
             (),
             listener.local_addr()?.port(),
             [("groups", groups.as_str()), ("discovery", "5960")].as_slice(),
@@ -51,7 +46,7 @@ impl Send {
                         tracing::error!("Error while accepting connection: {err}");
                     }
                     Ok(stream) => {
-                        if let Err(err) = Self::peer(stream) {
+                        if let Err(err) = Self::peer(Stream::from(stream)) {
                             tracing::error!("Error while handling peer: {err}");
                         }
                     }
@@ -62,15 +57,11 @@ impl Send {
         Ok(Self { mdns, name })
     }
 
-    fn peer(stream: TcpStream) -> Result<()> {
+    fn peer(mut stream: Stream) -> Result<()> {
         tracing::info!("New peer connected from `{}`", stream.peer_addr()?);
 
-        let mut stream = binrw::io::NoSeek::new(&stream);
-
         loop {
-            let frame = Frame::read(&mut stream)?;
-
-            match frame.unpack()? {
+            match stream.recv()? {
                 Msg::Video(_) | Msg::Audio(_) => (),
                 Msg::Text(pack) => {
                     let Ok(info) = Metadata::from_pack(&pack) else {

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::Result;
 
-pub type Pack = super::Pack<(), binrw::NullString>;
+pub type Pack = super::Pack<[u8; 8], binrw::NullString>;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Metadata {
@@ -27,6 +27,12 @@ impl Metadata {
         let mut text = std::io::Cursor::new(&pack.data.0);
 
         Ok(quick_xml::de::from_reader::<_, Self>(&mut text)?)
+    }
+
+    pub fn to_pack(&self) -> Result<Pack> {
+        let text = quick_xml::se::to_string(&self)?;
+
+        Ok(Pack::data(text))
     }
 }
 

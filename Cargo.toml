@@ -31,3 +31,6 @@ flume = { version = "0.11.0", default-features = false }
 
 mdns-sd = "0.10.1"
 gethostname = "0.4.3"
+
+[dev-dependencies]
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }

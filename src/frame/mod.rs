@@ -111,9 +111,9 @@ pub enum FrameType {
 impl FrameType {
     pub fn version(&self) -> u16 {
         match self {
-            Self::Video => 3,
-            Self::Audio => 2,
-            Self::Text => 2,
+            Self::Video => 5,
+            Self::Audio => 4,
+            Self::Text => 3,
         }
     }
 }
