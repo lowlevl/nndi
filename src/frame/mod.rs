@@ -1,12 +1,15 @@
 use binrw::{BinRead, BinWrite};
 
-mod scrambler;
-pub use scrambler::Scrambler;
-
 use crate::{
     msg::{Msg, Pack},
     Result,
 };
+
+mod scrambler;
+pub use scrambler::Scrambler;
+
+mod stream;
+pub use stream::Stream;
 
 #[derive(Debug, BinRead, BinWrite)]
 #[brw(little)]

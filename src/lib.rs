@@ -25,7 +25,6 @@ mod error;
 pub use error::{Error, Result};
 
 mod frame;
-mod stream;
 
 pub mod msg;
 pub mod recv;

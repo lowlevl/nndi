@@ -1,14 +1,10 @@
-use std::{
-    net::{TcpListener},
-    str,
-};
-
+use std::{net::TcpListener, str};
 
 use mdns_sd::{ServiceDaemon, ServiceInfo, UnregisterStatus};
 
 use crate::{
+    frame::Stream,
     msg::{metadata::Metadata, Msg},
-    stream::Stream,
     Result,
 };
 
