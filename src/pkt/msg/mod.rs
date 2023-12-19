@@ -1,6 +1,6 @@
 use binrw::{meta::ReadEndian, BinRead};
 
-use crate::{frame::Frame, Result};
+use crate::{pkt::Pkt, Result};
 
 pub mod audio;
 pub mod metadata;
@@ -42,7 +42,7 @@ where
     H: for<'a> BinRead<Args<'a> = ()> + ReadEndian,
     D: for<'a> BinRead<Args<'a> = ()> + ReadEndian,
 {
-    pub fn from_frame(frame: Frame) -> Result<Self> {
+    pub fn from_frame(frame: Pkt) -> Result<Self> {
         Ok(Self {
             header: BinRead::read(&mut std::io::Cursor::new(
                 &frame.data[..frame.header_size as usize],

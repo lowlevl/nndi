@@ -3,11 +3,13 @@ use std::{net::SocketAddr, thread};
 use mdns_sd::ServiceInfo;
 
 use crate::{
-    frame::Stream,
-    msg::{
-        audio,
-        metadata::{self, Metadata},
-        video, Msg,
+    pkt::{
+        msg::{
+            audio,
+            metadata::{self, Metadata},
+            video, Msg,
+        },
+        Stream,
     },
     Result,
 };

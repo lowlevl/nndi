@@ -25,4 +25,4 @@ informations nécessaires à l’interopérabilité d’un logiciel créé de fa
 
 There is no limitation of distributing this information to third parties, in other countries.
 
-> The above paragraph was sourced from there <https://code.videolan.org/jbk/libndi/-/blob/master/README.md>.
+_The above paragraph was sourced from there <https://code.videolan.org/jbk/libndi/-/blob/master/README.md>._

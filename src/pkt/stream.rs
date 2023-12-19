@@ -2,7 +2,8 @@ use std::net::{TcpStream, ToSocketAddrs};
 
 use binrw::{io::NoSeek, BinRead, BinWrite};
 
-use crate::{frame::Frame, msg::Msg, Result};
+use super::{msg::Msg, Pkt};
+use crate::Result;
 
 pub struct Stream {
     stream: NoSeek<TcpStream>,
@@ -21,7 +22,7 @@ impl Stream {
             self.stream.get_ref().peer_addr()?
         );
 
-        let frame = Frame::pack(msg)?;
+        let frame = Pkt::pack(msg)?;
         tracing::trace!(
             "Sending frame to `{}` {frame:?}",
             self.stream.get_ref().peer_addr()?
@@ -33,7 +34,7 @@ impl Stream {
     }
 
     pub fn recv(&mut self) -> Result<Msg> {
-        let frame = Frame::read(&mut self.stream)?;
+        let frame = Pkt::read(&mut self.stream)?;
         tracing::trace!(
             "Receiving frame from `{}` {frame:?}",
             self.stream.get_ref().peer_addr()?

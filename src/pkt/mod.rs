@@ -1,9 +1,6 @@
 use binrw::{BinRead, BinWrite};
 
-use crate::{
-    msg::{Msg, Pack},
-    Result,
-};
+use crate::Result;
 
 mod scrambler;
 pub use scrambler::Scrambler;
@@ -11,9 +8,11 @@ pub use scrambler::Scrambler;
 mod stream;
 pub use stream::Stream;
 
+pub mod msg;
+
 #[derive(Debug, BinRead, BinWrite)]
 #[brw(little)]
-pub struct Frame {
+pub struct Pkt {
     /// The version of the frame, for retro-compatibility purposes.
     /// May need to account for the MSB being `0`.
     #[br(map(|version: u16| version & 0x7fff))]
@@ -34,8 +33,8 @@ pub struct Frame {
     pub data: Vec<u8>,
 }
 
-impl Frame {
-    pub fn unpack(mut self) -> Result<Msg> {
+impl Pkt {
+    pub fn unpack(mut self) -> Result<msg::Msg> {
         let scrambler = Scrambler::detect(&self.frame_type, self.version);
 
         match self.frame_type {
@@ -55,7 +54,7 @@ impl Frame {
         })
     }
 
-    pub fn pack(msg: &Msg) -> Result<Self> {
+    pub fn pack(msg: &msg::Msg) -> Result<Self> {
         let (mut header, mut payload) = (Vec::new(), Vec::new());
 
         let frame_type = match msg {
@@ -95,7 +94,7 @@ impl Frame {
             ),
         }
 
-        Ok(Frame {
+        Ok(Pkt {
             version,
             frame_type,
             header_size,

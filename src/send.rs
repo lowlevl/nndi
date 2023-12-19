@@ -3,8 +3,10 @@ use std::{net::TcpListener, str};
 use mdns_sd::{ServiceDaemon, ServiceInfo, UnregisterStatus};
 
 use crate::{
-    frame::Stream,
-    msg::{metadata::Metadata, Msg},
+    pkt::{
+        msg::{metadata::Metadata, Msg},
+        Stream,
+    },
     Result,
 };
 

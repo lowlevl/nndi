@@ -24,9 +24,8 @@ fn name(subname: &str) -> Result<String> {
 mod error;
 pub use error::{Error, Result};
 
-mod frame;
+pub mod pkt;
 
-pub mod msg;
 pub mod recv;
 pub mod scan;
 pub mod send;
