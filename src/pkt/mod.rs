@@ -8,7 +8,8 @@ pub use scrambler::Scrambler;
 mod stream;
 pub use stream::Stream;
 
-pub mod msg;
+use frame::FrameType;
+pub mod frame;
 
 #[derive(Debug, BinRead, BinWrite)]
 #[brw(little)]
@@ -34,7 +35,7 @@ pub struct Pkt {
 }
 
 impl Pkt {
-    pub fn unpack(mut self) -> Result<msg::Msg> {
+    pub fn unpack(mut self) -> Result<frame::Frame> {
         let scrambler = Scrambler::detect(&self.frame_type, self.version);
 
         match self.frame_type {
@@ -54,7 +55,7 @@ impl Pkt {
         })
     }
 
-    pub fn pack(msg: &msg::Msg) -> Result<Self> {
+    pub fn pack(msg: &frame::Frame) -> Result<Self> {
         let (mut header, mut payload) = (Vec::new(), Vec::new());
 
         let frame_type = match msg {
@@ -101,23 +102,5 @@ impl Pkt {
             payload_size,
             data,
         })
-    }
-}
-
-#[derive(Debug, BinRead, BinWrite)]
-#[brw(repr = u16)]
-pub enum FrameType {
-    Video = 0,
-    Audio,
-    Text,
-}
-
-impl FrameType {
-    pub fn version(&self) -> u16 {
-        match self {
-            Self::Video => 4,
-            Self::Audio => 3,
-            Self::Text => 1,
-        }
     }
 }

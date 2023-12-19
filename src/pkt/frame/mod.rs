@@ -1,16 +1,35 @@
-use binrw::{meta::ReadEndian, BinRead};
+use binrw::{meta::ReadEndian, BinRead, BinWrite};
 
-use crate::{pkt::Pkt, Result};
+use super::Pkt;
+use crate::Result;
 
 pub mod audio;
 pub mod metadata;
 pub mod video;
 
 #[derive(Debug)]
-pub enum Msg {
+pub enum Frame {
     Video(video::Pack),
     Audio(audio::Pack),
     Text(metadata::Pack),
+}
+
+#[derive(Debug, BinRead, BinWrite)]
+#[brw(repr = u16)]
+pub enum FrameType {
+    Video = 0,
+    Audio,
+    Text,
+}
+
+impl FrameType {
+    pub fn version(&self) -> u16 {
+        match self {
+            Self::Video => 4,
+            Self::Audio => 3,
+            Self::Text => 1,
+        }
+    }
 }
 
 #[derive(Debug, Default)]

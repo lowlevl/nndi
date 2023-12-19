@@ -4,7 +4,7 @@ use mdns_sd::{ServiceDaemon, ServiceInfo, UnregisterStatus};
 
 use crate::{
     pkt::{
-        msg::{metadata::Metadata, Msg},
+        frame::{metadata::Metadata, Frame},
         Stream,
     },
     Result,
@@ -60,8 +60,8 @@ impl Send {
 
         loop {
             match stream.recv()? {
-                Msg::Video(_) | Msg::Audio(_) => (),
-                Msg::Text(pack) => {
+                Frame::Video(_) | Frame::Audio(_) => (),
+                Frame::Text(pack) => {
                     let Ok(info) = Metadata::from_pack(&pack) else {
                         tracing::warn!(
                             "Unhandled information: {}",

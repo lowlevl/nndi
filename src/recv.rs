@@ -4,10 +4,10 @@ use mdns_sd::ServiceInfo;
 
 use crate::{
     pkt::{
-        msg::{
+        frame::{
             audio,
             metadata::{self, Metadata},
-            video, Msg,
+            video, Frame,
         },
         Stream,
     },
@@ -36,7 +36,7 @@ impl Recv {
             stream.peer_addr()?
         );
 
-        stream.send(&Msg::Text(
+        stream.send(&Frame::Text(
             Metadata::Version(metadata::Version {
                 video: 5,
                 audio: 4,
@@ -47,21 +47,21 @@ impl Recv {
             .to_pack()?,
         ))?;
 
-        stream.send(&Msg::Text(
+        stream.send(&Frame::Text(
             Metadata::Identify(metadata::Identify {
                 name: crate::name("receiver")?,
             })
             .to_pack()?,
         ))?;
 
-        stream.send(&Msg::Text(
+        stream.send(&Frame::Text(
             Metadata::Video(metadata::Video {
                 quality: metadata::VideoQuality::High,
             })
             .to_pack()?,
         ))?;
 
-        stream.send(&Msg::Text(
+        stream.send(&Frame::Text(
             Metadata::EnabledStreams(metadata::EnabledStreams {
                 video: true,
                 audio: true,
@@ -91,17 +91,17 @@ impl Recv {
                 }
 
                 match stream.recv()? {
-                    Msg::Video(pack) => {
+                    Frame::Video(pack) => {
                         if let Err(err) = video.try_send(pack) {
                             tracing::warn!("Dropped a video sample: {err}");
                         }
                     }
-                    Msg::Audio(pack) => {
+                    Frame::Audio(pack) => {
                         if let Err(err) = audio.try_send(pack) {
                             tracing::warn!("Dropped an audio sample: {err}");
                         }
                     }
-                    Msg::Text(_) => {}
+                    Frame::Text(_) => {}
                 }
             }
 
