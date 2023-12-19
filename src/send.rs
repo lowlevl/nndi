@@ -4,7 +4,7 @@ use mdns_sd::{ServiceDaemon, ServiceInfo, UnregisterStatus};
 
 use crate::{
     pkt::{
-        frame::{metadata::Metadata, Frame},
+        frame::{text::Metadata, Frame},
         Stream,
     },
     Result,

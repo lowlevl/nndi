@@ -6,7 +6,7 @@ use crate::{
     pkt::{
         frame::{
             audio,
-            metadata::{self, Metadata},
+            text::{self, Metadata},
             video, Frame,
         },
         Stream,
@@ -37,7 +37,7 @@ impl Recv {
         );
 
         stream.send(&Frame::Text(
-            Metadata::Version(metadata::Version {
+            Metadata::Version(text::Version {
                 video: 5,
                 audio: 4,
                 text: 3,
@@ -48,21 +48,21 @@ impl Recv {
         ))?;
 
         stream.send(&Frame::Text(
-            Metadata::Identify(metadata::Identify {
+            Metadata::Identify(text::Identify {
                 name: crate::name("receiver")?,
             })
             .to_pack()?,
         ))?;
 
         stream.send(&Frame::Text(
-            Metadata::Video(metadata::Video {
-                quality: metadata::VideoQuality::High,
+            Metadata::Video(text::Video {
+                quality: text::VideoQuality::High,
             })
             .to_pack()?,
         ))?;
 
         stream.send(&Frame::Text(
-            Metadata::EnabledStreams(metadata::EnabledStreams {
+            Metadata::EnabledStreams(text::EnabledStreams {
                 video: true,
                 audio: true,
                 text: true,

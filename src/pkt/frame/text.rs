@@ -19,7 +19,7 @@ pub enum Metadata {
     EnabledStreams(EnabledStreams),
 
     #[serde(rename = "ntk_conn_feedback")]
-    ConnFeedback(ConnFeedback),
+    ConnectionFeedback(ConnectionFeedback),
 
     #[serde(rename = "ndi_tally")]
     Tally(Tally),
@@ -95,23 +95,23 @@ pub struct EnabledStreams {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename = "ntk_conn_feedback")]
-pub struct ConnFeedback {
-    pub connection: Conn,
+pub struct ConnectionFeedback {
+    pub connection: Connection,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Conn {
+pub struct Connection {
     #[serde(rename = "@name")]
     pub name: String,
     #[serde(rename = "@addr")]
     pub addr: String,
     #[serde(rename = "@state")]
-    pub state: ConnState,
+    pub state: ConnectionState,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum ConnState {
+pub enum ConnectionState {
     Up,
     Down,
 }

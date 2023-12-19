@@ -8,7 +8,7 @@ pub use scrambler::Scrambler;
 mod stream;
 pub use stream::Stream;
 
-use frame::FrameType;
+use frame::{Frame, FrameType, Pack};
 pub mod frame;
 
 #[derive(Debug, BinRead, BinWrite)]
@@ -49,9 +49,9 @@ impl Pkt {
         }
 
         Ok(match self.frame_type {
-            FrameType::Video => Msg::Video(Pack::from_frame(self)?),
-            FrameType::Audio => Msg::Audio(Pack::from_frame(self)?),
-            FrameType::Text => Msg::Text(Pack::from_frame(self)?),
+            FrameType::Video => Frame::Video(Pack::from_pkt(self)?),
+            FrameType::Audio => Frame::Audio(Pack::from_pkt(self)?),
+            FrameType::Text => Frame::Text(Pack::from_pkt(self)?),
         })
     }
 
@@ -59,19 +59,19 @@ impl Pkt {
         let (mut header, mut payload) = (Vec::new(), Vec::new());
 
         let frame_type = match msg {
-            Msg::Video(inner) => {
+            Frame::Video(inner) => {
                 inner.header.write(&mut std::io::Cursor::new(&mut header))?;
                 inner.data.write(&mut std::io::Cursor::new(&mut payload))?;
 
                 FrameType::Video
             }
-            Msg::Audio(inner) => {
+            Frame::Audio(inner) => {
                 inner.header.write(&mut std::io::Cursor::new(&mut header))?;
                 inner.data.write(&mut std::io::Cursor::new(&mut payload))?;
 
                 FrameType::Audio
             }
-            Msg::Text(inner) => {
+            Frame::Text(inner) => {
                 inner.header.write(&mut std::io::Cursor::new(&mut header))?;
                 inner.data.write(&mut std::io::Cursor::new(&mut payload))?;
 

@@ -4,14 +4,14 @@ use super::Pkt;
 use crate::Result;
 
 pub mod audio;
-pub mod metadata;
+pub mod text;
 pub mod video;
 
 #[derive(Debug)]
 pub enum Frame {
     Video(video::Pack),
     Audio(audio::Pack),
-    Text(metadata::Pack),
+    Text(text::Pack),
 }
 
 #[derive(Debug, BinRead, BinWrite)]
@@ -61,7 +61,7 @@ where
     H: for<'a> BinRead<Args<'a> = ()> + ReadEndian,
     D: for<'a> BinRead<Args<'a> = ()> + ReadEndian,
 {
-    pub fn from_frame(frame: Pkt) -> Result<Self> {
+    pub fn from_pkt(frame: Pkt) -> Result<Self> {
         Ok(Self {
             header: BinRead::read(&mut std::io::Cursor::new(
                 &frame.data[..frame.header_size as usize],
