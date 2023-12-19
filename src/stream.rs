@@ -16,17 +16,34 @@ impl Stream {
     }
 
     pub fn send(&mut self, msg: &Msg) -> Result<()> {
-        Frame::pack(msg)?.write(&mut self.stream)?;
+        tracing::debug!(
+            "Sending message to `{}` {msg:?}",
+            self.stream.get_ref().peer_addr()?
+        );
 
-        tracing::trace!("Sent message: {msg:?}");
+        let frame = Frame::pack(msg)?;
+        tracing::trace!(
+            "Sending frame to `{}` {frame:?}",
+            self.stream.get_ref().peer_addr()?
+        );
+
+        frame.write(&mut self.stream)?;
 
         Ok(())
     }
 
     pub fn recv(&mut self) -> Result<Msg> {
-        let msg = Frame::read(&mut self.stream)?.unpack()?;
+        let frame = Frame::read(&mut self.stream)?;
+        tracing::trace!(
+            "Receiving frame from `{}` {frame:?}",
+            self.stream.get_ref().peer_addr()?
+        );
 
-        tracing::trace!("Received message: {msg:?}");
+        let msg = frame.unpack()?;
+        tracing::debug!(
+            "Receiving message from `{}` {msg:?}",
+            self.stream.get_ref().peer_addr()?
+        );
 
         Ok(msg)
     }

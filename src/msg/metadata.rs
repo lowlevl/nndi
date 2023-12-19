@@ -40,11 +40,11 @@ impl Metadata {
 #[serde(rename = "ndi_version")]
 pub struct Version {
     #[serde(rename = "@text")]
-    pub text: u8,
+    pub text: u16,
     #[serde(rename = "@video")]
-    pub video: u8,
+    pub video: u16,
     #[serde(rename = "@audio")]
-    pub audio: u8,
+    pub audio: u16,
     #[serde(rename = "@sdk")]
     pub sdk: String,
     #[serde(rename = "@platform")]
@@ -60,7 +60,6 @@ pub struct Identify {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename = "ndi_video")]
-
 pub struct Video {
     #[serde(rename = "@quality")]
     pub quality: VideoQuality,
