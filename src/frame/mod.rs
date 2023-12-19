@@ -12,7 +12,9 @@ use crate::{
 #[brw(little)]
 pub struct Frame {
     /// The version of the frame, for retro-compatibility purposes.
-    #[br(map(|version: u16| version & 0x7fff))] // FIXME: Handle when the MSB is `0`
+    /// May need to account for the MSB being `0`.
+    #[br(map(|version: u16| version & 0x7fff))]
+    #[bw(map(|version| version | 0x8000))]
     pub version: u16,
 
     /// The type of the frame, either [`FrameType::Video`], [`FrameType::Audio`] or [`FrameType::Text`].

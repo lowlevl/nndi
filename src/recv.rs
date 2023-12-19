@@ -70,14 +70,6 @@ impl Recv {
             .to_pack()?,
         ))?;
 
-        stream.send(&Msg::Text(
-            Metadata::Tally(metadata::Tally {
-                on_preview: true,
-                on_program: true,
-            })
-            .to_pack()?,
-        ))?;
-
         let (videotx, video) = flume::bounded(queue);
         let (audiotx, audio) = flume::bounded(queue);
         Self::task(stream, videotx, audiotx);

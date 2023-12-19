@@ -18,8 +18,14 @@ pub enum Metadata {
     #[serde(rename = "ndi_enabled_streams")]
     EnabledStreams(EnabledStreams),
 
+    #[serde(rename = "ntk_conn_feedback")]
+    ConnFeedback(ConnFeedback),
+
     #[serde(rename = "ndi_tally")]
     Tally(Tally),
+
+    #[serde(other)]
+    Unknown,
 }
 
 impl Metadata {
@@ -85,6 +91,29 @@ pub struct EnabledStreams {
     pub shq_skip_block: bool,
     #[serde(rename = "@shq_short_dc")]
     pub shq_short_dc: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename = "ntk_conn_feedback")]
+pub struct ConnFeedback {
+    pub connection: Conn,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Conn {
+    #[serde(rename = "@name")]
+    pub name: String,
+    #[serde(rename = "@addr")]
+    pub addr: String,
+    #[serde(rename = "@state")]
+    pub state: ConnState,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ConnState {
+    Up,
+    Down,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
