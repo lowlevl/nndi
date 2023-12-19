@@ -14,6 +14,9 @@ pub struct Spec {
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, BinRead, BinWrite)]
 pub enum FourCCAudioType {
-    #[brw(magic = b"FLTP")]
-    FLTP,
+    #[brw(magic = b"fowt")]
+    FOWT,
+
+    #[brw(magic = b"sowt")]
+    SOWT,
 }
