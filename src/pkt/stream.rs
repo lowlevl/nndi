@@ -17,17 +17,12 @@ impl Stream {
     }
 
     pub fn send(&mut self, msg: &Frame) -> Result<()> {
-        tracing::debug!(
+        tracing::trace!(
             "Sending message to `{}` {msg:?}",
             self.stream.get_ref().peer_addr()?
         );
 
         let frame = Pkt::pack(msg)?;
-        tracing::trace!(
-            "Sending frame to `{}` {frame:?}",
-            self.stream.get_ref().peer_addr()?
-        );
-
         frame.write(&mut self.stream)?;
 
         Ok(())
@@ -35,13 +30,9 @@ impl Stream {
 
     pub fn recv(&mut self) -> Result<Frame> {
         let frame = Pkt::read(&mut self.stream)?;
-        tracing::trace!(
-            "Receiving frame from `{}` {frame:?}",
-            self.stream.get_ref().peer_addr()?
-        );
-
         let msg = frame.unpack()?;
-        tracing::debug!(
+
+        tracing::trace!(
             "Receiving message from `{}` {msg:?}",
             self.stream.get_ref().peer_addr()?
         );

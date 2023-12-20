@@ -28,9 +28,9 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tracing::info!("Connected !");
 
-    loop {
-        tracing::warn!("{:?} {:?}", recv.video(), recv.audio());
-
-        std::thread::sleep(std::time::Duration::from_millis(100));
+    for video in recv.iter_video() {
+        tracing::warn!("{:?}", video?);
     }
+
+    Ok(())
 }

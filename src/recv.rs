@@ -14,6 +14,7 @@ use crate::{
     Result,
 };
 
+#[derive(Debug, Clone)]
 pub struct Recv {
     video: flume::Receiver<video::Pack>,
     audio: flume::Receiver<audio::Pack>,
@@ -87,6 +88,8 @@ impl Recv {
         let mut task = move || {
             loop {
                 if video.is_disconnected() && audio.is_disconnected() {
+                    tracing::trace!("All receivers dropped, disconnecting from peer");
+
                     break;
                 }
 
@@ -120,8 +123,18 @@ impl Recv {
         self.video.try_recv()
     }
 
+    /// Iterate forever over the [`video::Spec`] from the queue.
+    pub fn iter_video(&self) -> impl Iterator<Item = Result<video::Pack, flume::RecvError>> + '_ {
+        std::iter::from_fn(move || Some(self.video.recv()))
+    }
+
     /// Pop the next [`audio::Spec`] from the queue, if present.
     pub fn audio(&self) -> Result<audio::Pack, flume::TryRecvError> {
         self.audio.try_recv()
+    }
+
+    /// Iterate forever over the [`audio::Spec`] from the queue.
+    pub fn iter_audio(&self) -> impl Iterator<Item = Result<audio::Pack, flume::RecvError>> + '_ {
+        std::iter::from_fn(move || Some(self.audio.recv()))
     }
 }
