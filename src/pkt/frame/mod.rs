@@ -9,9 +9,9 @@ pub mod video;
 
 #[derive(Debug)]
 pub enum Frame {
-    Video(video::Pack),
-    Audio(audio::Pack),
-    Text(text::Pack),
+    Video(video::Block),
+    Audio(audio::Block),
+    Text(text::Block),
 }
 
 #[derive(Debug, BinRead, BinWrite)]
@@ -33,12 +33,12 @@ impl FrameType {
 }
 
 #[derive(Debug, Default)]
-pub struct Pack<H, D> {
+pub struct Block<H, D> {
     pub header: H,
     pub data: D,
 }
 
-impl<H, D> Pack<H, D> {
+impl<H, D> Block<H, D> {
     pub fn new(header: H, data: impl Into<D>) -> Self {
         Self {
             header,
@@ -47,7 +47,7 @@ impl<H, D> Pack<H, D> {
     }
 }
 
-impl<H: Default, D> Pack<H, D> {
+impl<H: Default, D> Block<H, D> {
     pub fn data(data: impl Into<D>) -> Self {
         Self {
             header: Default::default(),
@@ -56,7 +56,7 @@ impl<H: Default, D> Pack<H, D> {
     }
 }
 
-impl<H, D> Pack<H, D>
+impl<H, D> Block<H, D>
 where
     H: for<'a> BinRead<Args<'a> = ()> + ReadEndian,
     D: for<'a> BinRead<Args<'a> = ()> + ReadEndian,

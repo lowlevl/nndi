@@ -1,6 +1,6 @@
 use binrw::{BinRead, BinWrite};
 
-pub type Pack = super::Pack<Spec, binrw::NullString>;
+pub type Block = super::Block<Spec, binrw::NullString>;
 
 #[derive(Debug, BinRead, BinWrite)]
 #[brw(little)]

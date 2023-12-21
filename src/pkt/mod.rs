@@ -8,7 +8,7 @@ pub use scrambler::Scrambler;
 mod stream;
 pub use stream::Stream;
 
-use frame::{Frame, FrameType, Pack};
+use frame::{Block, Frame, FrameType};
 pub mod frame;
 
 #[derive(Debug, BinRead, BinWrite)]
@@ -49,9 +49,9 @@ impl Pkt {
         }
 
         Ok(match self.frame_type {
-            FrameType::Video => Frame::Video(Pack::from_pkt(self)?),
-            FrameType::Audio => Frame::Audio(Pack::from_pkt(self)?),
-            FrameType::Text => Frame::Text(Pack::from_pkt(self)?),
+            FrameType::Video => Frame::Video(Block::from_pkt(self)?),
+            FrameType::Audio => Frame::Audio(Block::from_pkt(self)?),
+            FrameType::Text => Frame::Text(Block::from_pkt(self)?),
         })
     }
 

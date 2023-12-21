@@ -61,11 +61,11 @@ impl Send {
         loop {
             match stream.recv()? {
                 Frame::Video(_) | Frame::Audio(_) => (),
-                Frame::Text(pack) => {
-                    let Ok(info) = Metadata::from_pack(&pack) else {
+                Frame::Text(block) => {
+                    let Ok(info) = Metadata::from_block(&block) else {
                         tracing::warn!(
                             "Unhandled information: {}",
-                            String::from_utf8_lossy(&pack.data)
+                            String::from_utf8_lossy(&block.data)
                         );
 
                         continue;
