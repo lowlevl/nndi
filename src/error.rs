@@ -10,9 +10,6 @@ pub enum Error {
     #[error(transparent)]
     Mdns(#[from] mdns_sd::Error),
 
-    #[error("Machine hostname must be UTF-8 encoded: {0}")]
-    Hostname(std::string::FromUtf8Error),
-
     #[error(transparent)]
     Frame(#[from] binrw::Error),
 

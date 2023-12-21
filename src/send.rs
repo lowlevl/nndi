@@ -23,8 +23,8 @@ impl Send {
         let mdns = ServiceDaemon::new()?;
         let service = ServiceInfo::new(
             super::SERVICE_TYPE,
-            &crate::name(name)?,
-            &crate::hostname()?,
+            &crate::name(name),
+            &crate::hostname(),
             (),
             listener.local_addr()?.port(),
             [("groups", groups.as_str()), ("discovery", "5960")].as_slice(),

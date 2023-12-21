@@ -12,13 +12,13 @@ const SERVICE_TYPE: &str = "_ndi._tcp.local.";
 const SDK_VERSION: &str = "5.6.0";
 const SDK_PLATFORM: &str = "LINUX";
 
-fn hostname() -> Result<String> {
+fn hostname() -> String {
     let hostname = gethostname::gethostname();
-    String::from_utf8(hostname.into_encoded_bytes()).map_err(Error::Hostname)
+    String::from_utf8_lossy(&hostname.into_encoded_bytes()).to_string()
 }
 
-fn name(subname: &str) -> Result<String> {
-    Ok(format!("{} ({subname})", hostname()?.to_ascii_uppercase()))
+fn name(subname: &str) -> String {
+    format!("{} ({subname})", hostname().to_ascii_uppercase())
 }
 
 mod error;

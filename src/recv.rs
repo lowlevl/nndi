@@ -50,7 +50,7 @@ impl Recv {
 
         stream.send(&Frame::Text(
             Metadata::Identify(text::Identify {
-                name: crate::name("receiver")?,
+                name: crate::name("receiver"),
             })
             .to_block()?,
         ))?;
@@ -96,12 +96,12 @@ impl Recv {
                 match stream.recv()? {
                     Frame::Video(block) => {
                         if let Err(err) = video.try_send(block) {
-                            tracing::warn!("Dropped a video sample: {err}");
+                            tracing::debug!("A video block was dropped: {err}");
                         }
                     }
                     Frame::Audio(block) => {
                         if let Err(err) = audio.try_send(block) {
-                            tracing::warn!("Dropped an audio sample: {err}");
+                            tracing::debug!("An audio block was dropped: {err}");
                         }
                     }
                     Frame::Text(_) => {}
