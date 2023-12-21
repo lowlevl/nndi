@@ -37,6 +37,16 @@ impl Recv {
             stream.peer_addr()?
         );
 
+        Self::identify(&mut stream)?;
+
+        let (videotx, video) = flume::bounded(queue);
+        let (audiotx, audio) = flume::bounded(queue);
+        Self::task(stream, videotx, audiotx);
+
+        Ok(Self { video, audio })
+    }
+
+    fn identify(stream: &mut Stream) -> Result<()> {
         stream.send(&Frame::Text(
             Metadata::Version(text::Version {
                 video: 5,
@@ -73,11 +83,7 @@ impl Recv {
             .to_block()?,
         ))?;
 
-        let (videotx, video) = flume::bounded(queue);
-        let (audiotx, audio) = flume::bounded(queue);
-        Self::task(stream, videotx, audiotx);
-
-        Ok(Self { video, audio })
+        Ok(())
     }
 
     fn task(
