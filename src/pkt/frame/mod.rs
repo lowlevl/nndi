@@ -61,13 +61,13 @@ where
     H: for<'a> BinRead<Args<'a> = ()> + ReadEndian,
     D: for<'a> BinRead<Args<'a> = ()> + ReadEndian,
 {
-    pub fn from_pkt(frame: Pkt) -> Result<Self> {
+    pub fn from_pkt(pkt: Pkt) -> Result<Self> {
         Ok(Self {
             header: BinRead::read(&mut std::io::Cursor::new(
-                &frame.data[..frame.header_size as usize],
+                &pkt.data[..pkt.header_size as usize],
             ))?,
             data: BinRead::read(&mut std::io::Cursor::new(
-                &frame.data[frame.header_size as usize..],
+                &pkt.data[pkt.header_size as usize..],
             ))?,
         })
     }

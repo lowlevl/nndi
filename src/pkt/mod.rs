@@ -55,10 +55,10 @@ impl Pkt {
         })
     }
 
-    pub fn pack(msg: &frame::Frame) -> Result<Self> {
+    pub fn pack(frame: &frame::Frame) -> Result<Self> {
         let (mut header, mut payload) = (Vec::new(), Vec::new());
 
-        let frame_type = match msg {
+        let frame_type = match frame {
             Frame::Video(inner) => {
                 inner.header.write(&mut std::io::Cursor::new(&mut header))?;
                 inner.data.write(&mut std::io::Cursor::new(&mut payload))?;
