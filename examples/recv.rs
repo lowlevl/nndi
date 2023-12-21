@@ -2,6 +2,8 @@ use nndi::{recv::Recv, scan::Scan};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ffmpeg_next::init()?;
+
     // Set-up the log and traces handler
     tracing_subscriber::registry()
         .with(fmt::layer())
@@ -28,9 +30,12 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tracing::info!("Connected !");
 
-    for video in recv.iter_video() {
-        tracing::warn!("{:?}", video?);
-    }
+    recv.iter_video_frames()?;
+    //for video in recv.iter_video_frames()? {
+    //    tracing::warn!("{:?}", video?);
+    //}
+
+    loop {}
 
     Ok(())
 }

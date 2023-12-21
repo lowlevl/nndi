@@ -15,6 +15,9 @@ pub enum Error {
 
     #[error(transparent)]
     Xml(#[from] quick_xml::DeError),
+
+    #[error(transparent)]
+    Codec(#[from] ffmpeg_next::Error),
 }
 
 /// A handy [`std::result::Result`] type alias bounding the [`enum@Error`] struct as `E`.

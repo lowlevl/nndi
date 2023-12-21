@@ -1,8 +1,8 @@
-use binrw::{meta::ReadEndian, BinRead, BinWrite};
+use binrw::{BinRead, BinWrite};
 use strum::EnumDiscriminants;
 
-use super::Packet;
-use crate::Result;
+mod block;
+pub use block::Block;
 
 pub mod audio;
 pub mod text;
@@ -28,43 +28,17 @@ impl FrameType {
     }
 }
 
-#[derive(Debug, Default)]
-pub struct Block<H, D> {
-    pub header: H,
-    pub data: D,
+#[derive(Debug, BinRead, BinWrite)]
+#[brw(little)]
+pub struct BytesEof {
+    #[br(parse_with = binrw::helpers::until_eof)]
+    inner: Vec<u8>,
 }
 
-impl<H, D> Block<H, D> {
-    pub fn new(header: H, data: impl Into<D>) -> Self {
-        Self {
-            header,
-            data: data.into(),
-        }
-    }
-}
+impl std::ops::Deref for BytesEof {
+    type Target = [u8];
 
-impl<H: Default, D> Block<H, D> {
-    pub fn data(data: impl Into<D>) -> Self {
-        Self {
-            header: Default::default(),
-            data: data.into(),
-        }
-    }
-}
-
-impl<H, D> Block<H, D>
-where
-    H: for<'a> BinRead<Args<'a> = ()> + ReadEndian,
-    D: for<'a> BinRead<Args<'a> = ()> + ReadEndian,
-{
-    pub fn from_pkt(pkt: Packet) -> Result<Self> {
-        Ok(Self {
-            header: BinRead::read(&mut std::io::Cursor::new(
-                &pkt.data[..pkt.header_size as usize],
-            ))?,
-            data: BinRead::read(&mut std::io::Cursor::new(
-                &pkt.data[pkt.header_size as usize..],
-            ))?,
-        })
+    fn deref(&self) -> &Self::Target {
+        &self.inner
     }
 }

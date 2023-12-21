@@ -1,5 +1,7 @@
 use std::{net::SocketAddr, thread};
 
+use ffmpeg_next::codec;
+use itertools::Itertools;
 use mdns_sd::ServiceInfo;
 
 use crate::{
@@ -132,6 +134,25 @@ impl Recv {
     /// Iterate forever over the [`video::Block`] from the queue.
     pub fn iter_video(&self) -> impl Iterator<Item = Result<video::Block, flume::RecvError>> + '_ {
         std::iter::from_fn(move || Some(self.video.recv()))
+    }
+
+    //let codec = codec::decoder::find(codec::Id::SPEEDHQ)
+    //    .expect("Unable to find the SpeedHQ decoder in the ffmpeg implementation");
+    pub fn iter_video_frames(&self) -> Result<()> {
+        let mut decoder = codec::Context::new().decoder().video()?;
+
+        self.iter_video()
+            .map_ok(|block| {
+                decoder.send_packet(&codec::packet::Packet::borrow(&block.data));
+
+                let mut frame = ffmpeg_next::util::frame::Video::empty();
+                while decoder.receive_frame(&mut frame).is_ok() {
+                    tracing::error!("FRAME @{:?}: {:?}", frame.timestamp(), frame.data(0));
+                }
+            })
+            .collect::<Vec<_>>();
+
+        Ok(())
     }
 
     /// Pop the next [`audio::Block`] from the queue, if present.
