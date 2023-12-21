@@ -24,7 +24,7 @@ fn name(subname: &str) -> Result<String> {
 mod error;
 pub use error::{Error, Result};
 
-pub mod pkt;
+pub mod io;
 
 pub mod recv;
 pub mod scan;

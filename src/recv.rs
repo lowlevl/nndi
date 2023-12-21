@@ -3,7 +3,7 @@ use std::{net::SocketAddr, thread};
 use mdns_sd::ServiceInfo;
 
 use crate::{
-    pkt::{
+    io::{
         frame::{
             audio,
             text::{self, Metadata},

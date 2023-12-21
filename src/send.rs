@@ -3,7 +3,7 @@ use std::{net::TcpListener, str};
 use mdns_sd::{ServiceDaemon, ServiceInfo, UnregisterStatus};
 
 use crate::{
-    pkt::{
+    io::{
         frame::{text::Metadata, Frame},
         Stream,
     },

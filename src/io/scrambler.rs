@@ -1,10 +1,10 @@
 use super::FrameType;
 
 #[cfg(doc)]
-use super::Pkt;
+use super::Packet;
 
 /// An implementation of the _scrambling_ & _unscrambling_
-/// mechanism present in [`Pkt`]s.
+/// mechanism present in [`Packet`]s.
 ///
 /// Heavily inspired by the work done by the VLC team
 /// on their **libndi**, [see code](https://code.videolan.org/jbk/libndi/-/blob/c14b40caafb26a02249f062e7f907ceaa53c1b74/libndi.c#L48-L175).
@@ -135,7 +135,7 @@ impl Scrambler {
     }
 
     /// Detect the scrambler algorithm from the version
-    /// of the [`Pkt`] and the [`FrameType`].
+    /// of the [`Packet`] and the [`FrameType`].
     pub fn detect(frame_type: &FrameType, version: u16) -> Self {
         match &frame_type {
             FrameType::Video if version > 3 => Self::Type2,
