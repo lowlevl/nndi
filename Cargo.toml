@@ -21,13 +21,14 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
+strum = { version = "0.25.0", features = ["derive"] }
 tracing = "0.1.40"
 thiserror = "1.0.50"
 
+flume = { version = "0.11.0", default-features = false }
 binrw = "0.13.3"
 serde = { version = "1.0.193", features = ["derive"] }
 quick-xml = { version = "0.31.0", features = ["serialize"] }
-flume = { version = "0.11.0", default-features = false }
 
 mdns-sd = "0.10.1"
 gethostname = "0.4.3"
