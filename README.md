@@ -1,5 +1,5 @@
 # nndi
-[![docs.rs](https://img.shields.io/docsrs/nndi)](https://docs.rs/nndi) [![Crates.io](https://img.shields.io/crates/l/nndi)](https://crates.io/crates/nndi)
+[![docs.rs](https://img.shields.io/docsrs/nndi)](https://docs.rs/nndi) [![Crates.io](https://img.shields.io/crates/l/nndi)](https://crates.io/crates/nndi) ![rust workflow](https://github.com/lowlevl/nndi/actions/workflows/rust.yml/badge.svg)
 
 Totally not a NDI protocol implementation in Rust.
 
