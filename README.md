@@ -5,7 +5,7 @@ Totally not a NDI protocol implementation in Rust.
 
 # Legality
 
-This library was produced using some reverse-engineering that is allowed by the French law, in the case of interoperability.
+This library was produced using some reverse-engineering that is allowed by the French law, in the name of _interoperability_.
 
 En France, la directive européenne *91/250/CEE* a été transposée par la loi *n° 94-361 du 10 mai 1994* et le terme interopérabilité, mentionné à l'article *L. 122-6-1*
 du **Code de la propriété intellectuelle**.
@@ -25,4 +25,4 @@ informations nécessaires à l’interopérabilité d’un logiciel créé de fa
 
 There is no limitation of distributing this information to third parties, in other countries.
 
-_The above paragraph was sourced from there <https://code.videolan.org/jbk/libndi/-/blob/master/README.md>._
+_The above paragraph was sourced from [there](https://code.videolan.org/jbk/libndi/-/blob/c14b40caafb26a02249f062e7f907ceaa53c1b74/README.md#legality)._
