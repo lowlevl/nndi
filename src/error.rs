@@ -17,7 +17,10 @@ pub enum Error {
     Xml(#[from] quick_xml::DeError),
 
     #[error(transparent)]
-    Codec(#[from] ffmpeg_next::Error),
+    Codec(#[from] ffmpeg::Error),
+
+    #[error(transparent)]
+    ClosedChannel(#[from] flume::RecvError),
 }
 
 /// A handy [`std::result::Result`] type alias bounding the [`enum@Error`] struct as `E`.

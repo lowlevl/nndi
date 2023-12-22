@@ -8,7 +8,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with(EnvFilter::from_default_env())
         .init();
 
-    let send = Send::new("super source", None)?;
+    let _send = Send::new("super source", None)?;
 
     loop {}
 }

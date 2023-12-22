@@ -30,12 +30,21 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tracing::info!("Connected !");
 
-    recv.iter_video_frames()?;
-    //for video in recv.iter_video_frames()? {
-    //    tracing::warn!("{:?}", video?);
-    //}
+    for video in recv.video_frames() {
+        let video = video?;
 
-    loop {}
+        let mut converted = ffmpeg_next::frame::Video::empty();
+        video
+            .converter(ffmpeg_next::format::Pixel::RGBA)?
+            .run(&video, &mut converted)?;
+
+        tracing::warn!(
+            "{:?}, {}px x {}px",
+            converted.format(),
+            converted.width(),
+            converted.height(),
+        );
+    }
 
     Ok(())
 }

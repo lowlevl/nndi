@@ -1,4 +1,5 @@
 use binrw::{BinRead, BinWrite};
+use strum::AsRefStr;
 
 pub type Block = super::Block<Spec, super::BytesEof>;
 
@@ -22,13 +23,26 @@ pub struct Spec {
 }
 
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Debug, BinRead, BinWrite)]
+#[derive(Debug, AsRefStr, BinRead, BinWrite)]
+#[strum(serialize_all = "UPPERCASE")]
 pub enum FourCCVideoType {
     #[brw(magic = b"SHQ2")]
     SHQ2,
 
     #[brw(magic = b"SHQ7")]
     SHQ7,
+}
+
+impl FourCCVideoType {
+    pub fn to_code(&self) -> u32 {
+        let bytes = self
+            .as_ref()
+            .as_bytes()
+            .try_into()
+            .expect("FourCC was not of 4 characters");
+
+        u32::from_le_bytes(bytes)
+    }
 }
 
 #[derive(Debug, BinRead, BinWrite)]

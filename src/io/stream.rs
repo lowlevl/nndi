@@ -56,12 +56,10 @@ impl Stream {
 
         let scrambler = Scrambler::detect(&frame_type, version);
 
+        let seed = header_size + payload_size;
         match frame_type {
-            FrameType::Text => scrambler.scramble(&mut data[..], header_size + payload_size),
-            _ => scrambler.scramble(
-                &mut data[..header_size as usize],
-                header_size + payload_size,
-            ),
+            FrameType::Text => scrambler.scramble(&mut data[..], seed),
+            _ => scrambler.scramble(&mut data[..header_size as usize], seed),
         }
 
         let packet = Packet {
@@ -81,15 +79,10 @@ impl Stream {
 
         let scrambler = Scrambler::detect(&packet.frame_type, packet.version);
 
+        let seed = packet.header_size + packet.payload_size;
         match packet.frame_type {
-            FrameType::Text => scrambler.unscramble(
-                &mut packet.data[..],
-                packet.header_size + packet.payload_size,
-            ),
-            _ => scrambler.unscramble(
-                &mut packet.data[..packet.header_size as usize],
-                packet.header_size + packet.payload_size,
-            ),
+            FrameType::Text => scrambler.unscramble(&mut packet.data[..], seed),
+            _ => scrambler.unscramble(&mut packet.data[..packet.header_size as usize], seed),
         }
 
         let frame = match packet.frame_type {

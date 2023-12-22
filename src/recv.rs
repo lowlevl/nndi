@@ -1,6 +1,6 @@
 use std::{net::SocketAddr, thread};
 
-use ffmpeg_next::codec;
+use ffmpeg::codec;
 use itertools::Itertools;
 use mdns_sd::ServiceInfo;
 
@@ -132,27 +132,41 @@ impl Recv {
     }
 
     /// Iterate forever over the [`video::Block`] from the queue.
-    pub fn iter_video(&self) -> impl Iterator<Item = Result<video::Block, flume::RecvError>> + '_ {
+    pub fn video_blocks(
+        &self,
+    ) -> impl Iterator<Item = Result<video::Block, flume::RecvError>> + '_ {
         std::iter::from_fn(move || Some(self.video.recv()))
     }
 
-    //let codec = codec::decoder::find(codec::Id::SPEEDHQ)
-    //    .expect("Unable to find the SpeedHQ decoder in the ffmpeg implementation");
-    pub fn iter_video_frames(&self) -> Result<()> {
-        let mut decoder = codec::Context::new().decoder().video()?;
+    /// Iterate forever over decoded [`ffmpeg::frame::Video`] .
+    pub fn video_frames(&self) -> impl Iterator<Item = Result<ffmpeg::util::frame::Video>> + '_ {
+        self.video_blocks()
+            .map(|block| {
+                let block = block?;
 
-        self.iter_video()
-            .map_ok(|block| {
-                decoder.send_packet(&codec::packet::Packet::borrow(&block.data));
-
-                let mut frame = ffmpeg_next::util::frame::Video::empty();
-                while decoder.receive_frame(&mut frame).is_ok() {
-                    tracing::error!("FRAME @{:?}: {:?}", frame.timestamp(), frame.data(0));
+                let mut context = codec::Context::new();
+                // SAFETY: The pointer is allocated on the line before,
+                // and is guaranteed to be exclusive with `as_mut_ptr`.
+                unsafe {
+                    (*context.as_mut_ptr()).codec_tag = block.header.fourcc.to_code();
+                    (*context.as_mut_ptr()).width = block.header.width as i32;
+                    (*context.as_mut_ptr()).height = block.header.height as i32;
                 }
-            })
-            .collect::<Vec<_>>();
 
-        Ok(())
+                let mut decoder = context
+                    .decoder()
+                    .open_as(codec::decoder::find(codec::Id::SPEEDHQ))?
+                    .video()?;
+
+                decoder.send_packet(&codec::packet::Packet::borrow(&block.data))?;
+                decoder.send_eof()?;
+
+                Ok::<_, crate::Error>(std::iter::from_fn(move || {
+                    let mut frame = ffmpeg::frame::Video::empty();
+                    decoder.receive_frame(&mut frame).is_ok().then_some(frame)
+                }))
+            })
+            .flatten_ok()
     }
 
     /// Pop the next [`audio::Block`] from the queue, if present.

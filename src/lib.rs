@@ -8,6 +8,8 @@
     clippy::undocumented_unsafe_blocks
 )]
 
+extern crate ffmpeg_next as ffmpeg;
+
 const SERVICE_TYPE: &str = "_ndi._tcp.local.";
 const SDK_VERSION: &str = "5.6.0";
 const SDK_PLATFORM: &str = "LINUX";
