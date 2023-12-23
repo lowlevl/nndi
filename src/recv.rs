@@ -126,20 +126,20 @@ impl Recv {
         });
     }
 
-    /// Pop the next [`video::Block`] from the queue, if present.
+    /// Pop the next [`video::Block`] from the receiver, if present.
     pub fn video(&self) -> Result<video::Block, flume::TryRecvError> {
         self.video.try_recv()
     }
 
-    /// Iterate forever over the [`video::Block`] from the queue.
+    /// Iterate over incoming [`video::Block`]s.
     pub fn video_blocks(
         &self,
     ) -> impl Iterator<Item = Result<video::Block, flume::RecvError>> + '_ {
         std::iter::from_fn(move || Some(self.video.recv()))
     }
 
-    /// Iterate forever over decoded [`ffmpeg::frame::Video`] .
-    pub fn video_frames(&self) -> impl Iterator<Item = Result<ffmpeg::util::frame::Video>> + '_ {
+    /// Iterate over decoded [`ffmpeg::frame::Video`] from incoming [`video::Block`]s.
+    pub fn video_frames(&self) -> impl Iterator<Item = Result<ffmpeg::frame::Video>> + '_ {
         self.video_blocks()
             .map(|block| {
                 let block = block?;
@@ -151,6 +151,10 @@ impl Recv {
                     (*context.as_mut_ptr()).codec_tag = block.header.fourcc.to_code();
                     (*context.as_mut_ptr()).width = block.header.width as i32;
                     (*context.as_mut_ptr()).height = block.header.height as i32;
+                    (*context.as_mut_ptr()).framerate = ffmpeg::ffi::AVRational {
+                        num: block.header.fps_num as i32,
+                        den: block.header.fps_den as i32,
+                    };
                 }
 
                 let mut decoder = context
@@ -169,12 +173,12 @@ impl Recv {
             .flatten_ok()
     }
 
-    /// Pop the next [`audio::Block`] from the queue, if present.
+    /// Pop the next [`audio::Block`] from the receiver, if present.
     pub fn audio(&self) -> Result<audio::Block, flume::TryRecvError> {
         self.audio.try_recv()
     }
 
-    /// Iterate forever over the [`audio::Block`] from the queue.
+    /// Iterate over incoming [`audio::Block`]s.
     pub fn iter_audio(&self) -> impl Iterator<Item = Result<audio::Block, flume::RecvError>> + '_ {
         std::iter::from_fn(move || Some(self.audio.recv()))
     }

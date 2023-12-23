@@ -1,3 +1,5 @@
+use std::net::SocketAddr;
+
 use serde::{Deserialize, Serialize};
 
 use crate::Result;
@@ -104,7 +106,7 @@ pub struct Connection {
     #[serde(rename = "@name")]
     pub name: String,
     #[serde(rename = "@addr")]
-    pub addr: String,
+    pub addr: SocketAddr,
     #[serde(rename = "@state")]
     pub state: ConnectionState,
 }

@@ -24,22 +24,21 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         break (*source).clone();
     };
 
-    tracing::info!("Got source: {source:?}");
-
     let recv = Recv::new(&source, 16)?;
 
-    tracing::info!("Connected !");
+    tracing::info!("Connected to source: {source:?}");
 
-    for video in recv.video_frames() {
+    let mut converted = ffmpeg_next::frame::Video::empty();
+    for (idx, video) in recv.video_frames().enumerate() {
         let video = video?;
 
-        let mut converted = ffmpeg_next::frame::Video::empty();
         video
             .converter(ffmpeg_next::format::Pixel::RGBA)?
             .run(&video, &mut converted)?;
+        drop(video);
 
         tracing::warn!(
-            "{:?}, {}px x {}px",
+            "#{idx}: {:?}, {}px x {}px",
             converted.format(),
             converted.width(),
             converted.height(),

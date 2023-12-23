@@ -11,16 +11,16 @@
 extern crate ffmpeg_next as ffmpeg;
 
 const SERVICE_TYPE: &str = "_ndi._tcp.local.";
-const SDK_VERSION: &str = "5.6.0";
-const SDK_PLATFORM: &str = "LINUX";
+const SDK_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "~", env!("CARGO_PKG_NAME"));
+const SDK_PLATFORM: &str = "unknown";
 
 fn hostname() -> String {
     let hostname = gethostname::gethostname();
     String::from_utf8_lossy(&hostname.into_encoded_bytes()).to_string()
 }
 
-fn name(subname: &str) -> String {
-    format!("{} ({subname})", hostname().to_ascii_uppercase())
+fn name(source: &str) -> String {
+    format!("{} ({source})", hostname().to_ascii_uppercase())
 }
 
 mod error;

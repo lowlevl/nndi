@@ -6,8 +6,8 @@ pub use scrambler::Scrambler;
 mod stream;
 pub use stream::Stream;
 
-use frame::FrameType;
 pub mod frame;
+use frame::FrameType;
 
 #[derive(Debug, BinRead, BinWrite)]
 #[brw(little)]
