@@ -20,7 +20,10 @@ fn hostname() -> String {
 }
 
 fn name(source: &str) -> String {
-    format!("{} ({source})", hostname().to_ascii_uppercase())
+    let mut hostname = hostname();
+    hostname.make_ascii_uppercase();
+
+    format!("{hostname} ({source})")
 }
 
 mod error;

@@ -28,6 +28,9 @@ pub struct Packet {
     pub payload_size: u32,
 
     /// The payload of the frame.
-    #[br(count = header_size + payload_size)]
+    #[br(
+        count = header_size + payload_size,
+        err_context("version = {version}, type = {frame_type:?}, len = {}", header_size + payload_size)
+    )]
     pub data: Vec<u8>,
 }

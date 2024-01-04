@@ -14,17 +14,12 @@ pub struct Stream {
 
 impl Stream {
     pub fn connect(addrs: impl ToSocketAddrs) -> Result<Self> {
-        Ok(Self {
-            stream: NoSeek::new(TcpStream::connect(addrs)?),
-        })
+        let stream = NoSeek::new(TcpStream::connect(addrs)?);
+
+        Ok(Self { stream })
     }
 
     pub fn send(&mut self, frame: &Frame) -> Result<()> {
-        tracing::trace!(
-            "Sending frame to `{}` {frame:?}",
-            self.stream.get_ref().peer_addr()?
-        );
-
         let (mut header, mut payload) = (Vec::new(), Vec::new());
 
         let frame_type = match frame {
@@ -71,11 +66,27 @@ impl Stream {
         };
         packet.write(&mut self.stream)?;
 
+        tracing::trace!(
+            "Sent packet to `{}`: version = {}, type = {:?}, len = {}",
+            self.stream.get_ref().peer_addr()?,
+            packet.version,
+            packet.frame_type,
+            packet.header_size + packet.payload_size
+        );
+
         Ok(())
     }
 
     pub fn recv(&mut self) -> Result<Frame> {
         let mut packet = Packet::read(&mut self.stream)?;
+
+        tracing::trace!(
+            "Recevied packet to `{}`: version = {}, type = {:?}, len = {}",
+            self.stream.get_ref().peer_addr()?,
+            packet.version,
+            packet.frame_type,
+            packet.header_size + packet.payload_size
+        );
 
         let scrambler = Scrambler::detect(&packet.frame_type, packet.version);
 
@@ -90,11 +101,6 @@ impl Stream {
             FrameType::Audio => Frame::Audio(Block::from_pkt(packet)?),
             FrameType::Text => Frame::Text(Block::from_pkt(packet)?),
         };
-
-        tracing::trace!(
-            "Receiving frame from `{}` {frame:?}",
-            self.stream.get_ref().peer_addr()?
-        );
 
         Ok(frame)
     }
