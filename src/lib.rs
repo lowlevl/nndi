@@ -8,7 +8,7 @@
     clippy::undocumented_unsafe_blocks
 )]
 
-extern crate ffmpeg_next as ffmpeg;
+pub extern crate ffmpeg_next as ffmpeg;
 
 const SERVICE_TYPE: &str = "_ndi._tcp.local.";
 const SDK_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "~", env!("CARGO_PKG_NAME"));

@@ -21,7 +21,7 @@ pub enum Frame {
 impl FrameType {
     pub fn version(&self) -> u16 {
         match self {
-            Self::Video => 4,
+            Self::Video => 5,
             Self::Audio => 3,
             Self::Text => 1,
         }

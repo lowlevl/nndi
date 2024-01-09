@@ -1,4 +1,4 @@
-use nndi::send::Send;
+use nndi::{ffmpeg, send::Send};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -8,7 +8,17 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with(EnvFilter::from_default_env())
         .init();
 
-    let _send = Send::new("super source", None)?;
+    let send = Send::new("super source", None)?;
 
-    loop {}
+    let timebase = ffmpeg::sys::AVRational { num: 1, den: 1 };
+    let mut frame = ffmpeg::frame::Video::new(ffmpeg::format::Pixel::RGBA, 600, 360);
+    frame.data_mut(0).fill(u8::MAX);
+
+    let mut idx = 0;
+    loop {
+        frame.set_pts(Some(idx));
+        send.send_video(&frame, timebase)?;
+
+        idx += 1;
+    }
 }

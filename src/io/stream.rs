@@ -1,4 +1,7 @@
-use std::net::{TcpStream, ToSocketAddrs};
+use std::{
+    io::Write,
+    net::{TcpStream, ToSocketAddrs},
+};
 
 use binrw::{io::NoSeek, BinRead, BinWrite};
 
@@ -65,6 +68,7 @@ impl Stream {
             data,
         };
         packet.write(&mut self.stream)?;
+        self.stream.get_mut().flush()?;
 
         tracing::trace!(
             "Sent packet to `{}`: version = {}, type = {:?}, len = {}",
@@ -111,6 +115,12 @@ impl std::ops::Deref for Stream {
 
     fn deref(&self) -> &Self::Target {
         self.stream.get_ref()
+    }
+}
+
+impl std::ops::DerefMut for Stream {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.stream.get_mut()
     }
 }
 

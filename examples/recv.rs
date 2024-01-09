@@ -28,20 +28,14 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tracing::info!("Connected to source: {source:?}");
 
-    let mut converted = ffmpeg_next::frame::Video::empty();
     for (idx, video) in recv.video_frames().enumerate() {
         let video = video?;
 
-        video
-            .converter(ffmpeg_next::format::Pixel::RGBA)?
-            .run(&video, &mut converted)?;
-        drop(video);
-
         tracing::warn!(
             "#{idx}: {:?}, {}px x {}px",
-            converted.format(),
-            converted.width(),
-            converted.height(),
+            video.format(),
+            video.width(),
+            video.height(),
         );
     }
 

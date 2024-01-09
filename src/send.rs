@@ -1,5 +1,6 @@
-use std::{net::TcpListener, str};
+use std::{net::TcpListener, str, thread};
 
+use ffmpeg::codec;
 use mdns_sd::{ServiceDaemon, ServiceInfo, UnregisterStatus};
 
 use crate::{
@@ -37,22 +38,28 @@ impl Send {
 
         tracing::debug!("Registered mDNS service `{}`", name);
 
-        std::thread::spawn(move || {
+        Self::task(listener);
+
+        Ok(Self { mdns, name })
+    }
+
+    fn task(listener: TcpListener) {
+        thread::spawn(move || {
             for peer in listener.incoming() {
                 match peer {
                     Err(err) => {
                         tracing::error!("Error while accepting connection: {err}");
                     }
                     Ok(stream) => {
-                        if let Err(err) = Self::peer(Stream::from(stream)) {
-                            tracing::error!("Error while handling peer: {err}");
-                        }
+                        thread::spawn(move || {
+                            if let Err(err) = Self::peer(stream.into()) {
+                                tracing::error!("Fatal error in the `Send::task` thread: {err}");
+                            }
+                        });
                     }
                 }
             }
         });
-
-        Ok(Self { mdns, name })
     }
 
     fn peer(mut stream: Stream) -> Result<()> {
@@ -75,6 +82,46 @@ impl Send {
                 }
             }
         }
+    }
+
+    pub fn send_video(
+        &self,
+        frame: &ffmpeg::frame::Video,
+        timebase: ffmpeg::sys::AVRational,
+    ) -> Result<()> {
+        let mut converted = ffmpeg::frame::Video::new(
+            ffmpeg::format::Pixel::YUV422P,
+            frame.width(),
+            frame.height(),
+        );
+        frame
+            .converter(converted.format())?
+            .run(frame, &mut converted)?;
+
+        let mut context = codec::Context::new();
+        // SAFETY: The pointer is allocated on the line before,
+        // and is guaranteed to be exclusive with `as_mut_ptr`.
+        unsafe {
+            (*context.as_mut_ptr()).time_base = timebase;
+            (*context.as_mut_ptr()).pix_fmt = converted.format().into();
+            (*context.as_mut_ptr()).width = converted.width() as i32;
+            (*context.as_mut_ptr()).height = converted.height() as i32;
+        }
+
+        let mut encoder = context
+            .encoder()
+            .video()?
+            .open_as(codec::encoder::find(codec::Id::SPEEDHQ))?;
+
+        encoder.send_frame(&converted)?;
+        encoder.send_eof()?;
+
+        let mut packet = ffmpeg::Packet::empty();
+        encoder.receive_packet(&mut packet)?;
+
+        tracing::error!("PAK SIZE: {:?}", packet.data().map(<[u8]>::len));
+
+        Ok(())
     }
 }
 
