@@ -5,7 +5,10 @@ use mdns_sd::{ServiceDaemon, ServiceInfo, UnregisterStatus};
 
 use crate::{
     io::{
-        frame::{text::Metadata, Frame},
+        frame::{
+            text::{self, Metadata},
+            Frame,
+        },
         Stream,
     },
     Result,
@@ -43,6 +46,28 @@ impl Send {
         Ok(Self { mdns, name })
     }
 
+    fn identify(stream: &mut Stream) -> Result<()> {
+        stream.send(&Frame::Text(
+            Metadata::Version(text::Version {
+                video: 5,
+                audio: 4,
+                text: 3,
+                sdk: crate::SDK_VERSION.into(),
+                platform: crate::SDK_PLATFORM.into(),
+            })
+            .to_block()?,
+        ))?;
+
+        stream.send(&Frame::Text(
+            Metadata::Identify(text::Identify {
+                name: crate::name("receiver"),
+            })
+            .to_block()?,
+        ))?;
+
+        Ok(())
+    }
+
     fn task(listener: TcpListener) {
         thread::spawn(move || {
             for peer in listener.incoming() {
@@ -65,6 +90,8 @@ impl Send {
     fn peer(mut stream: Stream) -> Result<()> {
         tracing::info!("New peer connected from `{}`", stream.peer_addr()?);
 
+        Self::identify(&mut stream)?;
+
         loop {
             match stream.recv()? {
                 Frame::Video(_) | Frame::Audio(_) => (),
@@ -79,6 +106,13 @@ impl Send {
                     };
 
                     tracing::warn!("Received information: {info:?}");
+
+                    match info {
+                        Metadata::Tally(tally) => {
+                            stream.send(&Frame::Text(Metadata::TallyEcho(tally).to_block()?))?
+                        }
+                        _ => (),
+                    }
                 }
             }
         }

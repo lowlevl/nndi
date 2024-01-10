@@ -17,9 +17,7 @@ pub struct Stream {
 
 impl Stream {
     pub fn connect(addrs: impl ToSocketAddrs) -> Result<Self> {
-        let stream = NoSeek::new(TcpStream::connect(addrs)?);
-
-        Ok(Self { stream })
+        Ok(TcpStream::connect(addrs)?.into())
     }
 
     pub fn send(&mut self, frame: &Frame) -> Result<()> {

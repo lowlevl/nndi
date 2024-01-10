@@ -16,6 +16,8 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut idx = 0;
     loop {
+        std::thread::sleep(std::time::Duration::from_secs(1));
+
         frame.set_pts(Some(idx));
         send.send_video(&frame, timebase)?;
 

@@ -112,7 +112,18 @@ impl Recv {
                             tracing::debug!("An audio block was dropped: {err}");
                         }
                     }
-                    Frame::Text(_) => {}
+                    Frame::Text(block) => {
+                        let Ok(info) = Metadata::from_block(&block) else {
+                            tracing::warn!(
+                                "Unhandled information: {}",
+                                String::from_utf8_lossy(&block.data)
+                            );
+
+                            continue;
+                        };
+
+                        tracing::warn!("Received information: {info:?}");
+                    }
                 }
             }
 

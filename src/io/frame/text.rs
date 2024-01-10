@@ -26,8 +26,8 @@ pub enum Metadata {
     #[serde(rename = "ndi_tally")]
     Tally(Tally),
 
-    #[serde(other)]
-    Unknown,
+    #[serde(rename = "ndi_tally_echo")]
+    TallyEcho(Tally),
 }
 
 impl Metadata {
@@ -45,7 +45,6 @@ impl Metadata {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename = "ndi_version")]
 pub struct Version {
     #[serde(rename = "@text")]
     pub text: u16,
@@ -60,14 +59,12 @@ pub struct Version {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename = "ndi_identify")]
 pub struct Identify {
     #[serde(rename = "@name")]
     pub name: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename = "ndi_video")]
 pub struct Video {
     #[serde(rename = "@quality")]
     pub quality: VideoQuality,
@@ -81,7 +78,6 @@ pub enum VideoQuality {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename = "ndi_enabled_streams")]
 pub struct EnabledStreams {
     #[serde(rename = "@text")]
     pub text: bool,
@@ -96,7 +92,6 @@ pub struct EnabledStreams {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename = "ntk_conn_feedback")]
 pub struct ConnectionFeedback {
     pub connection: Connection,
 }
@@ -119,7 +114,6 @@ pub enum ConnectionState {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename = "ndi_tally")]
 pub struct Tally {
     #[serde(rename = "@on_program")]
     pub on_program: bool,
