@@ -50,7 +50,7 @@ impl Sink {
     }
 
     fn identify(stream: &mut Stream) -> Result<()> {
-        stream.send(&Frame::Text(
+        stream.send(
             Metadata::Version(text::Version {
                 video: 5,
                 audio: 4,
@@ -59,23 +59,23 @@ impl Sink {
                 platform: crate::SDK_PLATFORM.into(),
             })
             .to_block()?,
-        ))?;
+        )?;
 
-        stream.send(&Frame::Text(
+        stream.send(
             Metadata::Identify(text::Identify {
                 name: crate::name("receiver"),
             })
             .to_block()?,
-        ))?;
+        )?;
 
-        stream.send(&Frame::Text(
+        stream.send(
             Metadata::Video(text::Video {
                 quality: text::VideoQuality::High,
             })
             .to_block()?,
-        ))?;
+        )?;
 
-        stream.send(&Frame::Text(
+        stream.send(
             Metadata::EnabledStreams(text::EnabledStreams {
                 video: true,
                 audio: true,
@@ -84,7 +84,7 @@ impl Sink {
                 shq_short_dc: true,
             })
             .to_block()?,
-        ))?;
+        )?;
 
         Ok(())
     }

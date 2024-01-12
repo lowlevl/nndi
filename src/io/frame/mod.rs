@@ -1,4 +1,5 @@
 use binrw::{BinRead, BinWrite};
+use derive_more::From;
 use strum::EnumDiscriminants;
 
 mod block;
@@ -8,7 +9,7 @@ pub mod audio;
 pub mod text;
 pub mod video;
 
-#[derive(Debug, EnumDiscriminants)]
+#[derive(Debug, From, EnumDiscriminants)]
 #[strum_discriminants(name(FrameType))]
 #[strum_discriminants(derive(BinRead, BinWrite))]
 #[strum_discriminants(brw(repr = u16))]

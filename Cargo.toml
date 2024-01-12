@@ -34,6 +34,7 @@ mdns-sd = "0.10.1"
 gethostname = "0.4.3"
 ffmpeg-next = "6.1.0"
 itertools = "0.12.0"
+derive_more = "0.99.17"
 
 [dev-dependencies]
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }

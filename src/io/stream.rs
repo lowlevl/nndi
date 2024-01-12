@@ -20,9 +20,10 @@ impl Stream {
         Ok(TcpStream::connect(addrs)?.into())
     }
 
-    pub fn send(&mut self, frame: &Frame) -> Result<()> {
+    pub fn send(&mut self, frame: impl Into<Frame>) -> Result<()> {
         let (mut header, mut payload) = (Vec::new(), Vec::new());
 
+        let frame = frame.into();
         let frame_type = match frame {
             Frame::Video(inner) => {
                 inner.header.write(&mut std::io::Cursor::new(&mut header))?;
