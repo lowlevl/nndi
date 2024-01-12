@@ -32,7 +32,7 @@ impl Source {
             &crate::hostname(),
             (),
             listener.local_addr()?.port(),
-            [("groups", groups.as_str()), ("discovery", "5960")].as_slice(),
+            [("groups", groups.as_str())].as_slice(),
         )?
         .enable_addr_auto();
 
@@ -69,50 +69,52 @@ impl Source {
     }
 
     fn task(listener: TcpListener) {
-        thread::spawn(move || {
+        let task = move || {
             for peer in listener.incoming() {
                 match peer {
-                    Err(err) => {
-                        tracing::error!("Error while accepting connection: {err}");
-                    }
-                    Ok(stream) => {
-                        thread::spawn(move || {
-                            if let Err(err) = Self::peer(stream.into()) {
-                                tracing::error!("Fatal error in the `Send::task` thread: {err}");
-                            }
-                        });
-                    }
+                    Ok(stream) => Self::peer(stream.into()),
+                    Err(err) => tracing::error!("Error while accepting connection: {err}"),
                 }
             }
-        });
+        };
+
+        thread::spawn(task);
     }
 
-    fn peer(mut stream: Stream) -> Result<()> {
-        tracing::info!("New peer connected from `{}`", stream.peer_addr()?);
+    fn peer(mut stream: Stream) {
+        let mut task = move || -> Result<()> {
+            tracing::info!("New peer connected from `{}`", stream.peer_addr()?);
 
-        Self::identify(&mut stream)?;
+            Self::identify(&mut stream)?;
 
-        loop {
-            match stream.recv()? {
-                Frame::Video(_) | Frame::Audio(_) => (),
-                Frame::Text(block) => {
-                    let Ok(info) = Metadata::from_block(&block) else {
-                        tracing::warn!(
-                            "Unhandled information: {}",
-                            String::from_utf8_lossy(&block.data)
-                        );
+            loop {
+                match stream.recv()? {
+                    Frame::Video(_) | Frame::Audio(_) => (),
+                    Frame::Text(block) => {
+                        let Ok(info) = Metadata::from_block(&block) else {
+                            tracing::warn!(
+                                "Unhandled information: {}",
+                                String::from_utf8_lossy(&block.data)
+                            );
 
-                        continue;
-                    };
+                            continue;
+                        };
 
-                    tracing::warn!("Received information: {info:?}");
+                        tracing::warn!("Received information: {info:?}");
 
-                    if let Metadata::Tally(tally) = info {
-                        stream.send(Metadata::TallyEcho(tally).to_block()?)?
+                        if let Metadata::Tally(tally) = info {
+                            stream.send(Metadata::TallyEcho(tally).to_block()?)?
+                        }
                     }
                 }
             }
-        }
+        };
+
+        thread::spawn(move || {
+            if let Err(err) = task() {
+                tracing::error!("Fatal error in the `Source::peer` thread: {err}");
+            }
+        });
     }
 
     pub fn send_video(

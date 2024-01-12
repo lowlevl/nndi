@@ -1,4 +1,5 @@
 use binrw::{BinRead, BinWrite};
+use ffmpeg::codec;
 use strum::AsRefStr;
 
 pub type Block = super::Block<Spec, super::BytesEof>;
@@ -32,5 +33,12 @@ impl FourCCAudioType {
             .expect("FourCC was not of 4 characters");
 
         u32::from_le_bytes(bytes)
+    }
+
+    pub fn to_codec(&self) -> Option<ffmpeg::Codec> {
+        codec::decoder::find(match self {
+            FourCCAudioType::FOWT => codec::Id::PCM_S16LE,
+            FourCCAudioType::SOWT => codec::Id::PCM_S16LE,
+        })
     }
 }

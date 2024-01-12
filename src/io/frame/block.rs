@@ -8,15 +8,6 @@ pub struct Block<H, D> {
     pub data: D,
 }
 
-impl<H, D> Block<H, D> {
-    pub fn new(header: H, data: impl Into<D>) -> Self {
-        Self {
-            header,
-            data: data.into(),
-        }
-    }
-}
-
 impl<H: Default, D> Block<H, D> {
     pub fn data(data: impl Into<D>) -> Self {
         Self {

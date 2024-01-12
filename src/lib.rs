@@ -29,7 +29,7 @@ fn name(source: &str) -> String {
 mod error;
 pub use error::{Error, Result};
 
-pub mod io;
+mod io;
 
 mod scan;
 pub use scan::Scan;

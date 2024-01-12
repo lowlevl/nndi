@@ -24,20 +24,42 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         break (*source).clone();
     };
 
-    let recv = Sink::new(&source, 16)?;
+    let sink = Sink::new(&source, 16)?;
 
     tracing::info!("Connected to source: {source:?}");
 
-    for (idx, video) in recv.video_frames().enumerate() {
-        let video = video?;
+    let t0 = std::thread::spawn({
+        let sink = sink.clone();
 
-        tracing::warn!(
-            "#{idx}: {:?}, {}px x {}px",
-            video.format(),
-            video.width(),
-            video.height(),
-        );
-    }
+        move || {
+            for (idx, video) in sink.video_frames().enumerate() {
+                let video = video.expect("Unable to decode `video` frame");
+
+                tracing::warn!(
+                    "#{idx}: {:?}, {}px x {}px",
+                    video.format(),
+                    video.width(),
+                    video.height(),
+                );
+            }
+        }
+    });
+
+    let t1 = std::thread::spawn(move || {
+        for (idx, audio) in sink.audio_frames().enumerate() {
+            let audio = audio.expect("Unable to decode `audio` frame");
+
+            tracing::warn!(
+                "#{idx}: {:?}, rate: {} samples: {}",
+                audio.format(),
+                audio.rate(),
+                audio.samples(),
+            );
+        }
+    });
+
+    t0.join().expect("Unnable to join `video` thread");
+    t1.join().expect("Unnable to join `audio` thread");
 
     Ok(())
 }

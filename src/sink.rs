@@ -80,8 +80,8 @@ impl Sink {
                 video: true,
                 audio: true,
                 text: true,
-                shq_skip_block: true,
-                shq_short_dc: true,
+                shq_skip_block: false,
+                shq_short_dc: false,
             })
             .to_block()?,
         )?;
@@ -133,7 +133,7 @@ impl Sink {
 
         thread::spawn(move || {
             if let Err(err) = task() {
-                tracing::error!("Fatal error in the `Recv::task` thread: {err}");
+                tracing::error!("Fatal error in the `Sink::task` thread: {err}");
             }
         });
     }
@@ -143,7 +143,7 @@ impl Sink {
         std::iter::from_fn(move || Some(self.video.recv()))
     }
 
-    /// Iterate over decoded [`ffmpeg::frame::Video`] from incoming [`video::Block`]s.
+    /// Iterate over decoded [`ffmpeg::frame::Video`] from incoming blocks.
     pub fn video_frames(&self) -> impl Iterator<Item = Result<ffmpeg::frame::Video>> + '_ {
         self.video_blocks()
             .map(|block| {
@@ -183,15 +183,33 @@ impl Sink {
         std::iter::from_fn(move || Some(self.audio.recv()))
     }
 
-    /// Iterate over decoded [`ffmpeg::frame::Audio`] from incoming [`audio::Block`]s.
+    /// Iterate over decoded [`ffmpeg::frame::Audio`] from incoming blocks.
     pub fn audio_frames(&self) -> impl Iterator<Item = Result<ffmpeg::frame::Audio>> + '_ {
         self.audio_blocks()
             .map(|block| {
                 let block = block?;
 
-                todo!("Decompress audio blocks to audio frames");
+                let mut context = codec::Context::new();
+                // SAFETY: The pointer is allocated on the line before,
+                // and is guaranteed to be exclusive with `as_mut_ptr`.
+                unsafe {
+                    (*context.as_mut_ptr()).codec_tag = block.header.fourcc.to_code();
+                    (*context.as_mut_ptr()).channels = block.header.num_channels as i32;
+                    (*context.as_mut_ptr()).sample_rate = block.header.sample_rate as i32;
+                }
 
-                Ok::<_, crate::Error>([])
+                let mut decoder = context
+                    .decoder()
+                    .open_as(block.header.fourcc.to_codec())?
+                    .audio()?;
+
+                decoder.send_packet(&codec::packet::Packet::borrow(&block.data))?;
+                decoder.send_eof()?;
+
+                Ok::<_, crate::Error>(std::iter::from_fn(move || {
+                    let mut frame = ffmpeg::frame::Audio::empty();
+                    decoder.receive_frame(&mut frame).is_ok().then_some(frame)
+                }))
             })
             .flatten_ok()
     }
