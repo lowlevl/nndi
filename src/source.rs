@@ -14,12 +14,13 @@ use crate::{
     Result,
 };
 
-pub struct Send {
+/// A _video_ and _audio_ source, that can send data to multiple sinks.
+pub struct Source {
     mdns: ServiceDaemon,
     name: String,
 }
 
-impl Send {
+impl Source {
     pub fn new(name: &str, groups: Option<&[&str]>) -> Result<Self> {
         let groups = groups.unwrap_or(&["public"]).join(",");
         let listener = TcpListener::bind("[::]:0")?;
@@ -36,8 +37,7 @@ impl Send {
         .enable_addr_auto();
 
         let name = service.get_fullname().into();
-
-        mdns.register(service.clone())?;
+        mdns.register(service)?;
 
         tracing::debug!("Registered mDNS service `{}`", name);
 
@@ -159,7 +159,7 @@ impl Send {
     }
 }
 
-impl Drop for Send {
+impl Drop for Source {
     fn drop(&mut self) {
         match self.mdns.unregister(&self.name).map(|recv| recv.recv()) {
             Err(err) => tracing::error!(

@@ -1,4 +1,4 @@
-use nndi::{recv::Recv, scan::Scan};
+use nndi::{Scan, Sink};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -24,7 +24,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         break (*source).clone();
     };
 
-    let recv = Recv::new(&source, 16)?;
+    let recv = Sink::new(&source, 16)?;
 
     tracing::info!("Connected to source: {source:?}");
 

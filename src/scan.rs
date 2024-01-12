@@ -4,6 +4,7 @@ use mdns_sd::{ServiceDaemon, ServiceEvent, ServiceInfo};
 
 use crate::Result;
 
+/// A source scanner, providing an iterator of advertised _sources_ over mDNS.
 pub struct Scan {
     mdns: ServiceDaemon,
     receiver: mdns_sd::Receiver<ServiceEvent>,

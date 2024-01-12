@@ -16,13 +16,14 @@ use crate::{
     Result,
 };
 
+/// A _video_ and _audio_ sink, that can receive data from a source.
 #[derive(Debug, Clone)]
-pub struct Recv {
+pub struct Sink {
     video: flume::Receiver<video::Block>,
     audio: flume::Receiver<audio::Block>,
 }
 
-impl Recv {
+impl Sink {
     pub fn new(service: &ServiceInfo, queue: usize) -> Result<Self> {
         let port = service.get_port();
         let mut stream = Stream::connect(
@@ -137,15 +138,8 @@ impl Recv {
         });
     }
 
-    /// Pop the next [`video::Block`] from the receiver, if present.
-    pub fn video(&self) -> Result<video::Block, flume::TryRecvError> {
-        self.video.try_recv()
-    }
-
     /// Iterate over incoming [`video::Block`]s.
-    pub fn video_blocks(
-        &self,
-    ) -> impl Iterator<Item = Result<video::Block, flume::RecvError>> + '_ {
+    fn video_blocks(&self) -> impl Iterator<Item = Result<video::Block, flume::RecvError>> + '_ {
         std::iter::from_fn(move || Some(self.video.recv()))
     }
 
@@ -184,13 +178,21 @@ impl Recv {
             .flatten_ok()
     }
 
-    /// Pop the next [`audio::Block`] from the receiver, if present.
-    pub fn audio(&self) -> Result<audio::Block, flume::TryRecvError> {
-        self.audio.try_recv()
+    /// Iterate over incoming [`audio::Block`]s.
+    fn audio_blocks(&self) -> impl Iterator<Item = Result<audio::Block, flume::RecvError>> + '_ {
+        std::iter::from_fn(move || Some(self.audio.recv()))
     }
 
-    /// Iterate over incoming [`audio::Block`]s.
-    pub fn iter_audio(&self) -> impl Iterator<Item = Result<audio::Block, flume::RecvError>> + '_ {
-        std::iter::from_fn(move || Some(self.audio.recv()))
+    /// Iterate over decoded [`ffmpeg::frame::Audio`] from incoming [`audio::Block`]s.
+    pub fn audio_frames(&self) -> impl Iterator<Item = Result<ffmpeg::frame::Audio>> + '_ {
+        self.audio_blocks()
+            .map(|block| {
+                let block = block?;
+
+                todo!("Decompress audio blocks to audio frames");
+
+                Ok::<_, crate::Error>([])
+            })
+            .flatten_ok()
     }
 }

@@ -31,6 +31,11 @@ pub use error::{Error, Result};
 
 pub mod io;
 
-pub mod recv;
-pub mod scan;
-pub mod send;
+mod scan;
+pub use scan::Scan;
+
+mod sink;
+pub use sink::Sink;
+
+mod source;
+pub use source::Source;
