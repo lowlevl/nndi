@@ -16,8 +16,8 @@ use crate::{
 
 /// A _video_ and _audio_ source, that can send data to multiple sinks.
 pub struct Source {
-    mdns: ServiceDaemon,
     name: String,
+    mdns: ServiceDaemon,
 }
 
 impl Source {
@@ -43,7 +43,7 @@ impl Source {
 
         Self::task(listener);
 
-        Ok(Self { mdns, name })
+        Ok(Self { name, mdns })
     }
 
     fn identify(stream: &mut Stream) -> Result<()> {

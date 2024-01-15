@@ -70,9 +70,10 @@ pub struct Video {
     pub quality: VideoQuality,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum VideoQuality {
+    #[default]
     High,
     Low,
 }

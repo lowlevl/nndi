@@ -34,8 +34,8 @@ mod io;
 mod scan;
 pub use scan::Scan;
 
-mod sink;
+pub mod sink;
 pub use sink::Sink;
 
-mod source;
+pub mod source;
 pub use source::Source;

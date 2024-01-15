@@ -24,7 +24,14 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         break (*source).clone();
     };
 
-    let sink = Sink::new(&source, 16)?;
+    let sink = Sink::new(
+        &source,
+        nndi::sink::Config {
+            video_queue: 4,
+            audio_queue: 4,
+            ..Default::default()
+        },
+    )?;
 
     tracing::info!("Connected to source: {source:?}");
 

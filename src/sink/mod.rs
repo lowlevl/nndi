@@ -16,6 +16,9 @@ use crate::{
     Result,
 };
 
+mod config;
+pub use config::Config;
+
 /// A _video_ and _audio_ sink, that can receive data from a source.
 #[derive(Debug, Clone)]
 pub struct Sink {
@@ -24,7 +27,7 @@ pub struct Sink {
 }
 
 impl Sink {
-    pub fn new(service: &ServiceInfo, queue: usize) -> Result<Self> {
+    pub fn new(service: &ServiceInfo, config: Config) -> Result<Self> {
         let port = service.get_port();
         let mut stream = Stream::connect(
             &*service
@@ -40,16 +43,13 @@ impl Sink {
             stream.peer_addr()?
         );
 
-        Self::identify(&mut stream)?;
-
-        let (videotx, video) = flume::bounded(queue);
-        let (audiotx, audio) = flume::bounded(queue);
-        Self::task(stream, videotx, audiotx);
+        Self::identify(&mut stream, &config)?;
+        let (video, audio) = Self::task(stream, &config);
 
         Ok(Self { video, audio })
     }
 
-    fn identify(stream: &mut Stream) -> Result<()> {
+    fn identify(stream: &mut Stream, config: &Config) -> Result<()> {
         stream.send(
             Metadata::Version(text::Version {
                 video: 5,
@@ -63,22 +63,22 @@ impl Sink {
 
         stream.send(
             Metadata::Identify(text::Identify {
-                name: crate::name("receiver"),
+                name: crate::name(config.name.as_deref().unwrap_or("receiver")),
             })
             .to_block()?,
         )?;
 
         stream.send(
             Metadata::Video(text::Video {
-                quality: text::VideoQuality::High,
+                quality: config.video_quality.clone(),
             })
             .to_block()?,
         )?;
 
         stream.send(
             Metadata::EnabledStreams(text::EnabledStreams {
-                video: true,
-                audio: true,
+                video: config.video_queue != 0,
+                audio: config.audio_queue != 0,
                 text: true,
                 shq_skip_block: false,
                 shq_short_dc: false,
@@ -91,9 +91,11 @@ impl Sink {
 
     fn task(
         mut stream: Stream,
-        video: flume::Sender<video::Block>,
-        audio: flume::Sender<audio::Block>,
-    ) {
+        config: &Config,
+    ) -> (flume::Receiver<video::Block>, flume::Receiver<audio::Block>) {
+        let (video, videorx) = flume::bounded(config.video_queue);
+        let (audio, audiorx) = flume::bounded(config.audio_queue);
+
         let mut task = move || {
             loop {
                 if video.is_disconnected() && audio.is_disconnected() {
@@ -136,6 +138,8 @@ impl Sink {
                 tracing::error!("Fatal error in the `Sink::task` thread: {err}");
             }
         });
+
+        (videorx, audiorx)
     }
 
     /// Iterate over incoming [`video::Block`]s.
