@@ -1,6 +1,9 @@
 use crate::io::frame::text;
 
-/// Sink device configuration.
+#[cfg(doc)]
+use super::Sink;
+
+/// Configuration for the [`Sink`] structure.
 #[derive(Debug, Default, Clone)]
 pub struct Config {
     /// Sink name to advertise over the network, defaults to `receiver`.

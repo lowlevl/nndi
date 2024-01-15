@@ -8,7 +8,10 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with(EnvFilter::from_default_env())
         .init();
 
-    let send = Source::new("super source", None)?;
+    let send = Source::new(nndi::source::Config {
+        name: "super source",
+        ..Default::default()
+    })?;
 
     let timebase = ffmpeg::sys::AVRational { num: 1, den: 1 };
     let mut frame = ffmpeg::frame::Video::new(ffmpeg::format::Pixel::RGBA, 600, 360);

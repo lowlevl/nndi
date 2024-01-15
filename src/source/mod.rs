@@ -1,4 +1,4 @@
-use std::{net::TcpListener, str, thread};
+use std::{net::TcpListener, thread};
 
 use ffmpeg::codec;
 use mdns_sd::{ServiceDaemon, ServiceInfo, UnregisterStatus};
@@ -14,6 +14,9 @@ use crate::{
     Result,
 };
 
+mod config;
+pub use config::Config;
+
 /// A _video_ and _audio_ source, that can send data to multiple sinks.
 pub struct Source {
     name: String,
@@ -21,14 +24,14 @@ pub struct Source {
 }
 
 impl Source {
-    pub fn new(name: &str, groups: Option<&[&str]>) -> Result<Self> {
-        let groups = groups.unwrap_or(&["public"]).join(",");
+    pub fn new(config: Config<'_>) -> Result<Self> {
+        let groups = config.groups.unwrap_or(&["public"]).join(",");
         let listener = TcpListener::bind("[::]:0")?;
 
         let mdns = ServiceDaemon::new()?;
         let service = ServiceInfo::new(
             super::SERVICE_TYPE,
-            &crate::name(name),
+            &crate::name(config.name),
             &crate::hostname(),
             (),
             listener.local_addr()?.port(),
