@@ -3,19 +3,13 @@ use std::{net::TcpListener, thread};
 use ffmpeg::codec;
 use mdns_sd::{ServiceDaemon, ServiceInfo, UnregisterStatus};
 
-use crate::{
-    io::{
-        frame::{
-            text::{self, Metadata},
-            Frame,
-        },
-        Stream,
-    },
-    Result,
-};
+use crate::{io::Stream, Result};
 
 mod config;
 pub use config::Config;
+
+mod peer;
+use peer::Peer;
 
 /// A _video_ and _audio_ source, that can send data to multiple sinks.
 pub struct Source {
@@ -44,72 +38,41 @@ impl Source {
 
         tracing::debug!("Registered mDNS service `{}`", name);
 
-        Self::task(listener);
+        Self::listen(listener);
 
         Ok(Self { name, mdns })
     }
 
-    fn identify(stream: &mut Stream) -> Result<()> {
-        stream.send(
-            Metadata::Version(text::Version {
-                video: 5,
-                audio: 4,
-                text: 3,
-                sdk: crate::SDK_VERSION.into(),
-                platform: crate::SDK_PLATFORM.into(),
-            })
-            .to_block()?,
-        )?;
+    fn listen(listener: TcpListener) {
+        let task = move || loop {
+            match listener.accept() {
+                Ok((stream, addr)) => {
+                    let mut stream = stream.into();
+                    let peer = match Peer::handshake(&mut stream, std::time::Duration::from_secs(3))
+                    {
+                        Ok(peer) => peer,
+                        Err(err) => {
+                            tracing::warn!(
+                                "Unable to perform handshake with peer at `{addr}`: {err}",
+                            );
 
-        stream.send(
-            Metadata::Identify(text::Identify {
-                name: crate::name("receiver"),
-            })
-            .to_block()?,
-        )?;
+                            continue;
+                        }
+                    };
 
-        Ok(())
-    }
-
-    fn task(listener: TcpListener) {
-        let task = move || {
-            for peer in listener.incoming() {
-                match peer {
-                    Ok(stream) => Self::peer(stream.into()),
-                    Err(err) => tracing::error!("Error while accepting connection: {err}"),
+                    Self::peer(peer, stream)
                 }
+                Err(err) => tracing::error!("Error while accepting connection: {err}"),
             }
         };
 
         thread::spawn(task);
     }
 
-    fn peer(mut stream: Stream) {
+    fn peer(mut peer: Peer, mut stream: Stream) {
         let mut task = move || -> Result<()> {
-            tracing::info!("New peer connected from `{}`", stream.peer_addr()?);
-
-            Self::identify(&mut stream)?;
-
             loop {
-                match stream.recv()? {
-                    Frame::Video(_) | Frame::Audio(_) => (),
-                    Frame::Text(block) => {
-                        let Ok(info) = Metadata::from_block(&block) else {
-                            tracing::warn!(
-                                "Unhandled information: {}",
-                                String::from_utf8_lossy(&block.data)
-                            );
-
-                            continue;
-                        };
-
-                        tracing::warn!("Received information: {info:?}");
-
-                        if let Metadata::Tally(tally) = info {
-                            stream.send(Metadata::TallyEcho(tally).to_block()?)?
-                        }
-                    }
-                }
+                peer.tick(&mut stream)?;
             }
         };
 

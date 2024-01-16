@@ -21,6 +21,9 @@ pub enum Error {
 
     #[error(transparent)]
     ClosedChannel(#[from] flume::RecvError),
+
+    #[error("The peer timed out while awaiting mandatory data")]
+    Timeout,
 }
 
 /// A handy [`std::result::Result`] type alias bounding the [`enum@Error`] struct as `E`.

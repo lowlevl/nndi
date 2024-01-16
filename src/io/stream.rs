@@ -6,13 +6,19 @@ use std::{
 use binrw::{io::NoSeek, BinRead, BinWrite};
 
 use super::{
-    frame::{Block, Frame, FrameType},
+    frame::{text::Metadata, Block, Frame, FrameType},
     Packet, Scrambler,
 };
 use crate::Result;
 
 pub struct Stream {
     stream: NoSeek<TcpStream>,
+}
+
+impl std::fmt::Debug for Stream {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Stream").finish()
+    }
 }
 
 impl Stream {
@@ -106,6 +112,27 @@ impl Stream {
         };
 
         Ok(frame)
+    }
+
+    pub fn metadata(&mut self) -> Result<Metadata> {
+        loop {
+            match self.recv()? {
+                Frame::Text(block) => {
+                    let Ok(info) = Metadata::from_block(&block) else {
+                        tracing::warn!(
+                            "Unhandled information: {}",
+                            String::from_utf8_lossy(&block.data)
+                        );
+
+                        continue;
+                    };
+
+                    break Ok(info);
+                }
+
+                Frame::Video(_) | Frame::Audio(_) => continue,
+            }
+        }
     }
 }
 

@@ -114,7 +114,7 @@ pub enum ConnectionState {
     Down,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Tally {
     #[serde(rename = "@on_program")]
     pub on_program: bool,
