@@ -8,7 +8,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with(EnvFilter::from_default_env())
         .init();
 
-    let send = Source::new(nndi::source::Config {
+    let source = Source::new(nndi::source::Config {
         name: "super source",
         ..Default::default()
     })?;
@@ -22,7 +22,13 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::thread::sleep(std::time::Duration::from_secs(1));
 
         frame.set_pts(Some(idx));
-        send.send_video(&frame, timebase)?;
+        source.broadcast_video(&frame, timebase)?;
+
+        tracing::info!(
+            "Currently connected peers: {} (tally: {:?})",
+            source.peers().len(),
+            source.tally()
+        );
 
         idx += 1;
     }

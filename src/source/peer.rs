@@ -8,7 +8,11 @@ use crate::{
     Error, Result,
 };
 
-#[derive(Debug)]
+#[cfg(doc)]
+use super::Source;
+
+/// A _peer_ currently connected to a [`Source`], with all of it's protocol parameters.
+#[derive(Debug, Clone)]
 pub struct Peer {
     pub version: text::Version,
     pub identify: text::Identify,

@@ -31,6 +31,10 @@ pub use error::{Error, Result};
 
 mod io;
 
+pub mod metadata {
+    pub use crate::io::frame::text::{EnabledStreams, Identify, Tally, Version, VideoQuality};
+}
+
 mod scan;
 pub use scan::Scan;
 

@@ -1,5 +1,6 @@
 use std::net::SocketAddr;
 
+use derive_more::BitOr;
 use serde::{Deserialize, Serialize};
 
 use crate::Result;
@@ -44,7 +45,7 @@ impl Metadata {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Version {
     #[serde(rename = "@text")]
     pub text: u16,
@@ -58,13 +59,13 @@ pub struct Version {
     pub platform: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Identify {
     #[serde(rename = "@name")]
     pub name: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Video {
     #[serde(rename = "@quality")]
     pub quality: VideoQuality,
@@ -78,7 +79,7 @@ pub enum VideoQuality {
     Low,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnabledStreams {
     #[serde(rename = "@text")]
     pub text: bool,
@@ -114,7 +115,7 @@ pub enum ConnectionState {
     Down,
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, BitOr, Serialize, Deserialize)]
 pub struct Tally {
     #[serde(rename = "@on_program")]
     pub on_program: bool,

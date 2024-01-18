@@ -1,20 +1,32 @@
-use std::{net::TcpListener, thread};
+use std::{
+    net::TcpListener,
+    sync::{Arc, RwLock, Weak},
+    thread,
+};
 
 use ffmpeg::codec;
 use mdns_sd::{ServiceDaemon, ServiceInfo, UnregisterStatus};
 
-use crate::{io::Stream, Result};
+use crate::{
+    io::{frame::text, Stream},
+    Result,
+};
 
 mod config;
 pub use config::Config;
 
 mod peer;
-use peer::Peer;
+pub use peer::Peer;
+
+type Lock<T> = Arc<RwLock<T>>;
+type WeakLock<T> = Weak<RwLock<T>>;
 
 /// A _video_ and _audio_ source, that can send data to multiple sinks.
 pub struct Source {
     name: String,
     mdns: ServiceDaemon,
+
+    peers: Lock<Vec<WeakLock<Peer>>>,
 }
 
 impl Source {
@@ -38,12 +50,13 @@ impl Source {
 
         tracing::debug!("Registered mDNS service `{}`", name);
 
-        Self::listen(listener);
+        let peers = <Lock<Vec<WeakLock<Peer>>>>::default();
+        Self::listen(listener, peers.clone());
 
-        Ok(Self { name, mdns })
+        Ok(Self { name, mdns, peers })
     }
 
-    fn listen(listener: TcpListener) {
+    fn listen(listener: TcpListener, peers: Lock<Vec<WeakLock<Peer>>>) {
         let task = move || loop {
             match listener.accept() {
                 Ok((stream, addr)) => {
@@ -60,6 +73,12 @@ impl Source {
                         }
                     };
 
+                    let peer: Lock<_> = RwLock::new(peer).into();
+                    peers
+                        .write()
+                        .expect("Poisonned atomic lock, aborting.")
+                        .push(Arc::downgrade(&peer));
+
                     Self::peer(peer, stream)
                 }
                 Err(err) => tracing::error!("Error while accepting connection: {err}"),
@@ -69,10 +88,12 @@ impl Source {
         thread::spawn(task);
     }
 
-    fn peer(mut peer: Peer, mut stream: Stream) {
+    fn peer(peer: Lock<Peer>, mut stream: Stream) {
         let mut task = move || -> Result<()> {
             loop {
-                peer.tick(&mut stream)?;
+                peer.write()
+                    .expect("Poisonned atomic lock, aborting.")
+                    .tick(&mut stream)?;
             }
         };
 
@@ -83,7 +104,43 @@ impl Source {
         });
     }
 
-    pub fn send_video(
+    /// List the peers currently connected to the [`Source`], with their parameters.
+    pub fn peers(&self) -> Vec<Peer> {
+        let pointers: Vec<_> = self
+            .peers
+            .read()
+            .expect("Poisonned atomic lock, aborting.")
+            .iter()
+            .filter_map(Weak::upgrade)
+            .collect();
+
+        let peers = pointers
+            .iter()
+            .map(|peer| {
+                peer.read()
+                    .expect("Poisonned atomic lock, aborting.")
+                    .clone()
+            })
+            .collect();
+
+        *self
+            .peers
+            .write()
+            .expect("Poisonned atomic lock, aborting.") =
+            pointers.iter().map(Arc::downgrade).collect();
+
+        peers
+    }
+
+    /// Get current _tally_ information computed from all the connected peers of the [`Source`].
+    pub fn tally(&self) -> text::Tally {
+        self.peers()
+            .into_iter()
+            .fold(Default::default(), |current, peer| current | peer.tally)
+    }
+
+    /// Broadcast a [`ffmpeg::frame::Video`] to all the connected peers.
+    pub fn broadcast_video(
         &self,
         frame: &ffmpeg::frame::Video,
         timebase: ffmpeg::sys::AVRational,
@@ -121,6 +178,15 @@ impl Source {
         tracing::error!("PAK SIZE: {:?}", packet.data().map(<[u8]>::len));
 
         Ok(())
+    }
+
+    /// Broadcast a [`ffmpeg::frame::Audio`] to all the connected peers.
+    pub fn broadcast_audio(
+        &self,
+        frame: &ffmpeg::frame::Audio,
+        timebase: ffmpeg::sys::AVRational,
+    ) -> Result<()> {
+        todo!("Broadcast an audio frame")
     }
 }
 
