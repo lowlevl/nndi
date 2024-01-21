@@ -22,6 +22,9 @@ pub enum Error {
     #[error(transparent)]
     ClosedChannel(#[from] flume::RecvError),
 
+    #[error("Unknown frame kind from packet header")]
+    UnknownKind,
+
     #[error("The peer timed out while awaiting mandatory data")]
     Timeout,
 }

@@ -1,159 +1,40 @@
-use std::{
-    io::Write,
-    net::{TcpStream, ToSocketAddrs},
+use tokio::{
+    io::{AsyncWriteExt, BufStream},
+    net::TcpStream,
 };
 
-use binrw::{io::NoSeek, BinRead, BinWrite};
-
-use super::{
-    frame::{text::Metadata, Block, Frame, FrameType},
-    Packet, Scrambler,
-};
+use super::{frame::Frame, Packet};
 use crate::Result;
 
+#[derive(Debug)]
 pub struct Stream {
-    stream: NoSeek<TcpStream>,
-}
-
-impl std::fmt::Debug for Stream {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Stream").finish()
-    }
+    stream: BufStream<TcpStream>,
 }
 
 impl Stream {
-    pub fn connect(addrs: impl ToSocketAddrs) -> Result<Self> {
-        Ok(TcpStream::connect(addrs)?.into())
+    pub async fn recv(&mut self) -> Result<Frame> {
+        Packet::read(&mut self.stream).await?.into_frame()
     }
 
-    pub fn send(&mut self, frame: impl Into<Frame>) -> Result<()> {
-        let (mut header, mut payload) = (Vec::new(), Vec::new());
+    pub async fn send(&mut self, frame: &Frame) -> Result<()> {
+        Packet::from_frame(frame)?.write(&mut self.stream).await?;
 
-        let frame = frame.into();
-        let frame_type = match frame {
-            Frame::Video(inner) => {
-                inner.header.write(&mut std::io::Cursor::new(&mut header))?;
-                inner.data.write(&mut std::io::Cursor::new(&mut payload))?;
-
-                FrameType::Video
-            }
-            Frame::Audio(inner) => {
-                inner.header.write(&mut std::io::Cursor::new(&mut header))?;
-                inner.data.write(&mut std::io::Cursor::new(&mut payload))?;
-
-                FrameType::Audio
-            }
-            Frame::Text(inner) => {
-                inner.header.write(&mut std::io::Cursor::new(&mut header))?;
-                inner.data.write(&mut std::io::Cursor::new(&mut payload))?;
-
-                FrameType::Text
-            }
-        };
-        let version = frame_type.version();
-        let header_size = header.len() as u32;
-        let payload_size = payload.len() as u32;
-
-        header.append(&mut payload);
-        let mut data = header;
-
-        let scrambler = Scrambler::detect(&frame_type, version);
-
-        let seed = header_size + payload_size;
-        match frame_type {
-            FrameType::Text => scrambler.scramble(&mut data[..], seed),
-            _ => scrambler.scramble(&mut data[..header_size as usize], seed),
-        }
-
-        let packet = Packet {
-            version,
-            frame_type,
-            header_size,
-            payload_size,
-            data,
-        };
-        packet.write(&mut self.stream)?;
-        self.stream.get_mut().flush()?;
-
-        tracing::trace!(
-            "Sent packet to `{}`: version = {}, type = {:?}, len = {}",
-            self.stream.get_ref().peer_addr()?,
-            packet.version,
-            packet.frame_type,
-            packet.header_size + packet.payload_size
-        );
-
-        Ok(())
+        Ok(self.stream.flush().await?)
     }
 
-    pub fn recv(&mut self) -> Result<Frame> {
-        let mut packet = Packet::read(&mut self.stream)?;
-
-        tracing::trace!(
-            "Recevied packet to `{}`: version = {}, type = {:?}, len = {}",
-            self.stream.get_ref().peer_addr()?,
-            packet.version,
-            packet.frame_type,
-            packet.header_size + packet.payload_size
-        );
-
-        let scrambler = Scrambler::detect(&packet.frame_type, packet.version);
-
-        let seed = packet.header_size + packet.payload_size;
-        match packet.frame_type {
-            FrameType::Text => scrambler.unscramble(&mut packet.data[..], seed),
-            _ => scrambler.unscramble(&mut packet.data[..packet.header_size as usize], seed),
-        }
-
-        let frame = match packet.frame_type {
-            FrameType::Video => Frame::Video(Block::from_pkt(packet)?),
-            FrameType::Audio => Frame::Audio(Block::from_pkt(packet)?),
-            FrameType::Text => Frame::Text(Block::from_pkt(packet)?),
-        };
-
-        Ok(frame)
+    pub async fn readable(&self) -> Result<()> {
+        Ok(self.stream.get_ref().readable().await?)
     }
 
-    pub fn metadata(&mut self) -> Result<Metadata> {
-        loop {
-            match self.recv()? {
-                Frame::Text(block) => {
-                    let Ok(info) = Metadata::from_block(&block) else {
-                        tracing::warn!(
-                            "Unhandled information: {}",
-                            String::from_utf8_lossy(&block.data)
-                        );
-
-                        continue;
-                    };
-
-                    break Ok(info);
-                }
-
-                Frame::Video(_) | Frame::Audio(_) => continue,
-            }
-        }
-    }
-}
-
-impl std::ops::Deref for Stream {
-    type Target = TcpStream;
-
-    fn deref(&self) -> &Self::Target {
-        self.stream.get_ref()
-    }
-}
-
-impl std::ops::DerefMut for Stream {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.stream.get_mut()
+    pub async fn writable(&self) -> Result<()> {
+        Ok(self.stream.get_ref().writable().await?)
     }
 }
 
 impl std::convert::From<TcpStream> for Stream {
-    fn from(value: TcpStream) -> Stream {
+    fn from(stream: TcpStream) -> Self {
         Self {
-            stream: NoSeek::new(value),
+            stream: BufStream::new(stream),
         }
     }
 }

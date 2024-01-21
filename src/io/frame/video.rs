@@ -3,7 +3,7 @@ use strum::AsRefStr;
 
 pub type Block = super::Block<Spec, super::BytesEof>;
 
-#[derive(Debug, BinRead, BinWrite)]
+#[derive(Debug, PartialEq, BinRead, BinWrite)]
 #[brw(little)]
 pub struct Spec {
     pub fourcc: FourCCVideoType,
@@ -23,7 +23,7 @@ pub struct Spec {
 }
 
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Debug, AsRefStr, BinRead, BinWrite)]
+#[derive(Debug, PartialEq, AsRefStr, BinRead, BinWrite)]
 #[strum(serialize_all = "UPPERCASE")]
 pub enum FourCCVideoType {
     #[brw(magic = b"SHQ2")]
@@ -45,7 +45,7 @@ impl FourCCVideoType {
     }
 }
 
-#[derive(Debug, BinRead, BinWrite)]
+#[derive(Debug, PartialEq, BinRead, BinWrite)]
 #[brw(repr = u32)]
 pub enum FrameFormat {
     Interleaved = 0,

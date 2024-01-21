@@ -4,7 +4,7 @@ use strum::AsRefStr;
 
 pub type Block = super::Block<Spec, super::BytesEof>;
 
-#[derive(Debug, BinRead, BinWrite)]
+#[derive(Debug, PartialEq, BinRead, BinWrite)]
 #[brw(little)]
 pub struct Spec {
     pub fourcc: FourCCAudioType,
@@ -14,7 +14,7 @@ pub struct Spec {
 }
 
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Debug, AsRefStr, BinRead, BinWrite)]
+#[derive(Debug, PartialEq, AsRefStr, BinRead, BinWrite)]
 #[strum(serialize_all = "lowercase")]
 pub enum FourCCAudioType {
     #[brw(magic = b"fowt")]
