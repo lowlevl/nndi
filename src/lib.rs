@@ -8,11 +8,14 @@
     clippy::undocumented_unsafe_blocks
 )]
 
+use std::time::Duration;
+
 pub extern crate ffmpeg_next as ffmpeg;
 
 const SERVICE_TYPE: &str = "_ndi._tcp.local.";
 const SDK_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "~", env!("CARGO_PKG_NAME"));
 const SDK_PLATFORM: &str = "unknown";
+const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(3);
 
 fn hostname() -> String {
     let hostname = gethostname::gethostname();
@@ -26,14 +29,10 @@ fn name(source: &str) -> String {
     format!("{hostname} ({source})")
 }
 
-mod error;
-pub use error::{Error, Result};
-
 mod io;
 
-pub mod metadata {
-    pub use crate::io::frame::text::{EnabledStreams, Identify, Tally, Version, VideoQuality};
-}
+mod error;
+pub use error::{Error, Result};
 
 mod scan;
 pub use scan::Scan;
@@ -43,3 +42,7 @@ pub use sink::Sink;
 
 pub mod source;
 pub use source::Source;
+
+pub mod metadata {
+    pub use crate::io::frame::text::{EnabledStreams, Identify, Tally, Version, VideoQuality};
+}

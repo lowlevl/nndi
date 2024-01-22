@@ -1,16 +1,13 @@
-use std::{net::SocketAddr, thread};
+use std::net::SocketAddr;
 
 use ffmpeg::codec;
 use itertools::Itertools;
 use mdns_sd::ServiceInfo;
+use tokio::net::TcpStream;
 
 use crate::{
     io::{
-        frame::{
-            audio,
-            text::{self, Metadata},
-            video, Frame,
-        },
+        frame::{audio, text::Metadata, video, Frame},
         Stream,
     },
     Result,
@@ -19,74 +16,39 @@ use crate::{
 mod config;
 pub use config::Config;
 
+mod peer;
+pub use peer::Peer;
+
 /// A _video_ and _audio_ sink, that can receive data from a source.
 #[derive(Debug, Clone)]
 pub struct Sink {
+    peer: Peer,
+
     video: flume::Receiver<video::Block>,
     audio: flume::Receiver<audio::Block>,
 }
 
 impl Sink {
-    pub fn new(service: &ServiceInfo, config: Config) -> Result<Self> {
-        let port = service.get_port();
-        let mut stream = Stream::connect(
-            &*service
-                .get_addresses()
-                .iter()
-                .map(|addr| SocketAddr::new(*addr, port))
-                .collect::<Vec<_>>(),
-        )?;
+    pub async fn new(service: &ServiceInfo, config: Config) -> Result<Self> {
+        let addresses = service
+            .get_addresses()
+            .iter()
+            .map(|addr| SocketAddr::new(*addr, service.get_port()))
+            .collect::<Vec<_>>();
+        let mut stream: Stream = TcpStream::connect(addresses.as_slice()).await?.into();
 
-        tracing::debug!(
-            "Connected to network source `{}@{}`",
-            service.get_fullname(),
-            stream.peer_addr()?
-        );
-
-        Self::identify(&mut stream, &config)?;
+        let peer = tokio::time::timeout(
+            crate::HANDSHAKE_TIMEOUT,
+            Peer::handshake(&mut stream, &config),
+        )
+        .await??;
         let (video, audio) = Self::task(stream, &config);
 
-        Ok(Self { video, audio })
+        Ok(Self { peer, video, audio })
     }
 
-    fn identify(stream: &mut Stream, config: &Config) -> Result<()> {
-        stream.send(
-            Metadata::Version(text::Version {
-                video: 5,
-                audio: 4,
-                text: 3,
-                sdk: crate::SDK_VERSION.into(),
-                platform: crate::SDK_PLATFORM.into(),
-            })
-            .to_block()?,
-        )?;
-
-        stream.send(
-            Metadata::Identify(text::Identify {
-                name: crate::name(config.name.as_deref().unwrap_or("receiver")),
-            })
-            .to_block()?,
-        )?;
-
-        stream.send(
-            Metadata::Video(text::Video {
-                quality: config.video_quality.clone(),
-            })
-            .to_block()?,
-        )?;
-
-        stream.send(
-            Metadata::EnabledStreams(text::EnabledStreams {
-                video: config.video_queue != 0,
-                audio: config.audio_queue != 0,
-                text: true,
-                shq_skip_block: false,
-                shq_short_dc: false,
-            })
-            .to_block()?,
-        )?;
-
-        Ok(())
+    pub fn peer(&self) -> &Peer {
+        &self.peer
     }
 
     fn task(
@@ -96,7 +58,7 @@ impl Sink {
         let (video, videorx) = flume::bounded(config.video_queue);
         let (audio, audiorx) = flume::bounded(config.audio_queue);
 
-        let mut task = move || {
+        let task = async move {
             loop {
                 if video.is_disconnected() && audio.is_disconnected() {
                     tracing::trace!("All receivers dropped, disconnecting from peer");
@@ -104,7 +66,7 @@ impl Sink {
                     break;
                 }
 
-                match stream.recv()? {
+                match stream.recv().await? {
                     Frame::Video(block) => {
                         if let Err(err) = video.try_send(block) {
                             tracing::debug!("A video block was dropped: {err}");
@@ -133,8 +95,8 @@ impl Sink {
             Ok::<_, crate::Error>(())
         };
 
-        thread::spawn(move || {
-            if let Err(err) = task() {
+        tokio::spawn(async {
+            if let Err(err) = task.await {
                 tracing::error!("Fatal error in the `Sink::task` thread: {err}");
             }
         });

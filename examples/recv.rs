@@ -1,7 +1,8 @@
 use nndi::{Scan, Sink};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
-pub fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ffmpeg_next::init()?;
 
     // Set-up the log and traces handler
@@ -31,7 +32,8 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
             audio_queue: 4,
             ..Default::default()
         },
-    )?;
+    )
+    .await?;
 
     tracing::info!("Connected to source: {source:?}");
 
