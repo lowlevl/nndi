@@ -3,7 +3,12 @@
 
 Totally not a NDI protocol implementation in Rust.
 
-# Legality
+## About
+
+This project is still at a very early stage and barely (or not at all) works with the other implementations.
+The publication to crates.io is postponed to a time where this at least works with one official viewer/source combination.
+
+## Legality
 
 This library was produced using some reverse-engineering that is allowed by the French law, in the name of _interoperability_.
 
