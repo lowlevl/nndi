@@ -11,7 +11,7 @@ use crate::{
         frame::{audio, text::Metadata, video, Frame},
         Stream,
     },
-    Result,
+    Error, Result,
 };
 
 mod config;
@@ -106,7 +106,7 @@ impl Sink {
     pub fn video_frames(&self) -> impl Iterator<Item = Result<ffmpeg::frame::Video>> + '_ {
         self.video_blocks()
             .map(|block| {
-                let block = block?;
+                let block = block.map_err(|_| Error::ClosedChannel)?;
 
                 let mut context = codec::Context::new();
                 // SAFETY: The pointer is allocated on the line before,
@@ -146,7 +146,7 @@ impl Sink {
     pub fn audio_frames(&self) -> impl Iterator<Item = Result<ffmpeg::frame::Audio>> + '_ {
         self.audio_blocks()
             .map(|block| {
-                let block = block?;
+                let block = block.map_err(|_| Error::ClosedChannel)?;
 
                 let mut context = codec::Context::new();
                 // SAFETY: The pointer is allocated on the line before,

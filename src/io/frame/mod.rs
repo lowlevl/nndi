@@ -41,6 +41,20 @@ impl Frame {
         (kind, header, data)
     }
 
+    pub fn video(spec: video::Spec, data: Vec<u8>) -> Self {
+        Self::Video(Block {
+            header: spec,
+            data: data.into(),
+        })
+    }
+
+    pub fn audio(spec: audio::Spec, data: Vec<u8>) -> Self {
+        Self::Audio(Block {
+            header: spec,
+            data: data.into(),
+        })
+    }
+
     pub fn version() -> Self {
         Self::Text(
             text::Metadata::Version(text::Version {

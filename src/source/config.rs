@@ -3,10 +3,10 @@ use super::Source;
 
 /// Configuration for the [`Source`] structure.
 #[derive(Debug, Default, Clone)]
-pub struct Config<'s> {
+pub struct Config {
     /// Source name to advertise over the network.
-    pub name: &'s str,
+    pub name: String,
 
     /// Source groups to advertise over the network, defaults to `public`.
-    pub groups: Option<&'s [&'s str]>,
+    pub groups: Option<Vec<&'static str>>,
 }

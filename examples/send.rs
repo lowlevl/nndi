@@ -10,12 +10,12 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .init();
 
     let source = Source::new(nndi::source::Config {
-        name: "super source",
+        name: "super source".into(),
         ..Default::default()
     })
     .await?;
 
-    let timebase = ffmpeg::sys::AVRational { num: 1, den: 1 };
+    let timebase = ffmpeg::sys::AVRational { num: 30, den: 1 };
     let mut frame = ffmpeg::frame::Video::new(ffmpeg::format::Pixel::RGBA, 600, 360);
     frame.data_mut(0).fill(u8::MAX);
 
@@ -24,7 +24,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::thread::sleep(std::time::Duration::from_secs(1));
 
         frame.set_pts(Some(idx));
-        source.broadcast_video(&frame, timebase)?;
+        source.broadcast_video(&frame, timebase).await?;
 
         tracing::info!(
             "Currently connected peers: {} (tally: {:?})",

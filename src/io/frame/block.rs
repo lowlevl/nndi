@@ -66,3 +66,9 @@ impl std::ops::Deref for BytesEof {
         &self.inner
     }
 }
+
+impl std::convert::From<Vec<u8>> for BytesEof {
+    fn from(value: Vec<u8>) -> Self {
+        Self { inner: value }
+    }
+}

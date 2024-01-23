@@ -6,7 +6,10 @@ use mdns_sd::{ServiceDaemon, ServiceInfo, UnregisterStatus};
 use tokio::{net::TcpListener, sync::RwLock};
 
 use crate::{
-    io::{frame::text, Stream},
+    io::{
+        frame::{text, video, Frame},
+        Stream,
+    },
     Error, Result,
 };
 
@@ -15,6 +18,9 @@ pub use config::Config;
 
 mod peer;
 pub use peer::Peer;
+
+mod entry_set;
+use entry_set::EntrySet;
 
 type Lock<T> = Arc<RwLock<T>>;
 type WeakLock<T> = Weak<RwLock<T>>;
@@ -25,17 +31,18 @@ pub struct Source {
     mdns: ServiceDaemon,
 
     peers: Lock<Vec<WeakLock<Peer>>>,
+    frames: flume::Sender<Frame>,
 }
 
 impl Source {
-    pub async fn new(config: Config<'_>) -> Result<Self> {
-        let groups = config.groups.unwrap_or(&["public"]).join(",");
+    pub async fn new(config: Config) -> Result<Self> {
+        let groups = config.groups.as_deref().unwrap_or(&["public"]).join(",");
         let listener = TcpListener::bind("[::]:0").await?;
 
         let mdns = ServiceDaemon::new()?;
         let service = ServiceInfo::new(
             super::SERVICE_TYPE,
-            &crate::name(config.name),
+            &crate::name(&config.name),
             &crate::hostname(),
             (),
             listener.local_addr()?.port(),
@@ -49,26 +56,38 @@ impl Source {
         tracing::debug!("Registered mDNS service `{}`", name);
 
         let peers = <Lock<Vec<WeakLock<Peer>>>>::default();
+        let (frames, framesrx) = flume::bounded(1);
         tokio::spawn(
-            Self::listen(listener, peers.clone())
+            Self::listen(listener, config, peers.clone(), framesrx)
                 .inspect_err(|err| tracing::error!("Fatal error in `Source::listener`: {err}")),
         );
 
-        Ok(Self { name, mdns, peers })
+        Ok(Self {
+            name,
+            mdns,
+            peers,
+            frames,
+        })
     }
 
-    async fn listen(listener: tokio::net::TcpListener, peers: Lock<Vec<WeakLock<Peer>>>) -> Result {
-        let mut streams: Vec<(Lock<Peer>, Stream)> = Vec::new();
+    async fn listen(
+        listener: tokio::net::TcpListener,
+        config: Config,
+        peers: Lock<Vec<WeakLock<Peer>>>,
+        frames: flume::Receiver<Frame>,
+    ) -> Result {
+        let mut streams: EntrySet<(Lock<Peer>, Stream), 32> = Default::default();
 
         loop {
             tokio::select! {
+                // Accept new connections in the pool
                 accepted = listener.accept() => {
-                    let (stream, addr) = accepted?;
+                    let (stream, _) = accepted?;
                     let mut stream = stream.into();
 
                     let peer = tokio::time::timeout(
                         crate::HANDSHAKE_TIMEOUT,
-                        Peer::handshake(addr, &mut stream)
+                        Peer::handshake(&mut stream, &config)
                     )
                     .await??;
                     let peer = Arc::from(RwLock::new(peer));
@@ -76,16 +95,18 @@ impl Source {
                     peers.write().await.push(Arc::downgrade(&peer));
                     streams.push((peer, stream));
                 }
-                Some(stream) = async {
+
+                // Receive metadata from peers
+                Some(mut entry) = async {
                     let mut readable = streams
                         .iter_mut()
-                        .map(|(peer, stream)| async { stream.readable().await.map(|_| (peer, stream)) })
+                        .map(|entry| async { entry.1.readable().await.ok(); entry })
                         .collect::<futures::stream::FuturesUnordered<_>>();
 
                     readable.next().await
                 } => {
-                    let res: Result = async {
-                        let (peer, stream) = stream?;
+                    let result: Result = async {
+                        let (peer, stream) = &mut *entry;
 
                         if let Some(text::Metadata::Tally(tally)) = stream.metadata().await? {
                             peer.write().await.tally = tally;
@@ -94,11 +115,29 @@ impl Source {
                         Ok(())
                     }.await;
 
-                    if let Err(err) = res {
-                       tracing::error!("Peer handling failed: {err}");
+                    if let Err(err) = result {
+                        tracing::error!("Peer handling failed: {err}");
 
-                        //TODO: handle disconnect
+                        entry.clear();
                     }
+                }
+
+                // Send frames to all peers
+                Ok(frame) = frames.recv_async() => {
+                    futures::future::join_all(
+                        streams
+                            .iter_mut()
+                            .map(|mut entry| {
+                                let frame = &frame;
+
+                                async move {
+                                    if entry.0.read().await.streams.video {
+                                        entry.1.send(frame).await.ok();
+                                    }
+                                }
+                            })
+                    )
+                    .await;
                 }
             }
         }
@@ -135,7 +174,7 @@ impl Source {
     }
 
     /// Broadcast a [`ffmpeg::frame::Video`] to all the connected peers.
-    pub fn broadcast_video(
+    pub async fn broadcast_video(
         &self,
         frame: &ffmpeg::frame::Video,
         timebase: ffmpeg::sys::AVRational,
@@ -149,20 +188,13 @@ impl Source {
             .converter(converted.format())?
             .run(frame, &mut converted)?;
 
-        let mut context = codec::Context::new();
-        // SAFETY: The pointer is allocated on the line before,
-        // and is guaranteed to be exclusive with `as_mut_ptr`.
-        unsafe {
-            (*context.as_mut_ptr()).time_base = timebase;
-            (*context.as_mut_ptr()).pix_fmt = converted.format().into();
-            (*context.as_mut_ptr()).width = converted.width() as i32;
-            (*context.as_mut_ptr()).height = converted.height() as i32;
-        }
+        let mut encoder = codec::Context::new().encoder().video()?;
+        encoder.set_time_base(timebase);
+        encoder.set_format(converted.format());
+        encoder.set_width(converted.width());
+        encoder.set_height(converted.height());
 
-        let mut encoder = context
-            .encoder()
-            .video()?
-            .open_as(codec::encoder::find(codec::Id::SPEEDHQ))?;
+        let mut encoder = encoder.open_as(codec::encoder::find(codec::Id::SPEEDHQ))?;
 
         encoder.send_frame(&converted)?;
         encoder.send_eof()?;
@@ -171,6 +203,29 @@ impl Source {
         encoder.receive_packet(&mut packet)?;
 
         tracing::error!("PAK SIZE: {:?}", packet.data().map(<[u8]>::len));
+        self.frames
+            .send_async(Frame::video(
+                video::Spec {
+                    fourcc: video::FourCCVideoType::SHQ2,
+                    width: frame.width(),
+                    height: frame.height(),
+                    fps_num: timebase.num as u32,
+                    fps_den: timebase.den as u32,
+                    aspect_ratio: frame.aspect_ratio().numerator() as f32
+                        / frame.aspect_ratio().denominator() as f32,
+                    _1: Default::default(),
+                    frame_format: video::FrameFormat::Progressive,
+                    _2: Default::default(),
+                    _3: Default::default(),
+                    timecode: 0,
+                    _4: Default::default(),
+                    _5: Default::default(),
+                    metadata: Default::default(),
+                },
+                packet.data().expect("No packet data ??").to_vec(),
+            ))
+            .await
+            .map_err(|_| Error::ClosedChannel)?;
 
         Ok(())
     }

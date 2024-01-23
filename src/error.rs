@@ -19,8 +19,8 @@ pub enum Error {
     #[error(transparent)]
     Codec(#[from] ffmpeg::Error),
 
-    #[error(transparent)]
-    ClosedChannel(#[from] flume::RecvError),
+    #[error("The channel was closed, and cannot accept data anymore")]
+    ClosedChannel,
 
     #[error("The peer timed out while awaiting mandatory data")]
     Timeout(#[from] tokio::time::error::Elapsed),
