@@ -38,10 +38,11 @@ impl Metadata {
         Ok(quick_xml::de::from_reader::<_, Self>(&mut text)?)
     }
 
-    pub fn to_block(&self) -> Result<Block> {
-        let text = quick_xml::se::to_string(&self)?;
+    pub fn to_block(&self) -> Block {
+        let text = quick_xml::se::to_string(&self)
+            .expect("Unable to serialize XML structure, should not be the case");
 
-        Ok(Block::data(text))
+        Block::data(text)
     }
 }
 

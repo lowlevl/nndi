@@ -20,7 +20,7 @@ impl Stream {
     }
 
     pub async fn send(&mut self, frame: &Frame) -> Result {
-        Packet::from_frame(frame)?.write(&mut self.stream).await?;
+        Packet::from_frame(frame).write(&mut self.stream).await?;
 
         Ok(self.stream.flush().await?)
     }

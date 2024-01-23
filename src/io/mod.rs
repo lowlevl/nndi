@@ -67,8 +67,8 @@ impl Packet {
         )
     }
 
-    pub fn from_frame(frame: &Frame) -> Result<Self> {
-        let (kind, mut header, mut data) = frame.to_parts()?;
+    pub fn from_frame(frame: &Frame) -> Self {
+        let (kind, mut header, mut data) = frame.to_parts();
 
         let version = kind.version();
         let header_size = header.len();
@@ -84,12 +84,12 @@ impl Packet {
             _ => scrambler.scramble(&mut data[..header_size], seed),
         }
 
-        Ok(Self {
+        Self {
             version,
             kind,
             header_size,
             data,
-        })
+        }
     }
 }
 
@@ -104,7 +104,7 @@ mod tests {
         let mut bytes = Vec::new();
 
         let frame = Frame::Text(Block::data("hello world !"));
-        let message = Packet::from_frame(&frame)?;
+        let message = Packet::from_frame(&frame);
 
         message.write(&mut bytes).await?;
 

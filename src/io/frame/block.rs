@@ -38,13 +38,17 @@ where
     H: for<'a> BinWrite<Args<'a> = ()> + WriteEndian,
     D: for<'a> BinWrite<Args<'a> = ()> + WriteEndian,
 {
-    pub fn to_raw(&self) -> Result<(Vec<u8>, Vec<u8>)> {
+    pub fn to_raw(&self) -> (Vec<u8>, Vec<u8>) {
         let (mut header, mut data) = (Vec::new(), Vec::new());
 
-        self.header.write(&mut std::io::Cursor::new(&mut header))?;
-        self.data.write(&mut std::io::Cursor::new(&mut data))?;
+        self.header
+            .write(&mut std::io::Cursor::new(&mut header))
+            .expect("Failed to write block header to buffer");
+        self.data
+            .write(&mut std::io::Cursor::new(&mut data))
+            .expect("Failed to write block data to buffer");
 
-        Ok((header, data))
+        (header, data)
     }
 }
 

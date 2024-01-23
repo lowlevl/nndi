@@ -31,14 +31,14 @@ impl Frame {
         Ok(frame)
     }
 
-    pub fn to_parts(&self) -> Result<(FrameKind, Vec<u8>, Vec<u8>)> {
+    pub fn to_parts(&self) -> (FrameKind, Vec<u8>, Vec<u8>) {
         let (kind, (header, data)) = match self {
-            Self::Video(block) => (FrameKind::Video, block.to_raw()?),
-            Self::Audio(block) => (FrameKind::Audio, block.to_raw()?),
-            Self::Text(block) => (FrameKind::Text, block.to_raw()?),
+            Self::Video(block) => (FrameKind::Video, block.to_raw()),
+            Self::Audio(block) => (FrameKind::Audio, block.to_raw()),
+            Self::Text(block) => (FrameKind::Text, block.to_raw()),
         };
 
-        Ok((kind, header, data))
+        (kind, header, data)
     }
 
     pub fn version() -> Self {
@@ -50,8 +50,7 @@ impl Frame {
                 sdk: crate::SDK_VERSION.into(),
                 platform: crate::SDK_PLATFORM.into(),
             })
-            .to_block()
-            .expect("Invalid block construction"),
+            .to_block(),
         )
     }
 
@@ -60,17 +59,12 @@ impl Frame {
             text::Metadata::Identify(text::Identify {
                 name: crate::name(name),
             })
-            .to_block()
-            .expect("Invalid block construction"),
+            .to_block(),
         )
     }
 
     pub fn video_meta(quality: text::VideoQuality) -> Self {
-        Self::Text(
-            text::Metadata::Video(text::Video { quality })
-                .to_block()
-                .expect("Invalid block construction"),
-        )
+        Self::Text(text::Metadata::Video(text::Video { quality }).to_block())
     }
 
     pub fn enabled_streams(video: bool, audio: bool) -> Self {
@@ -82,8 +76,7 @@ impl Frame {
                 shq_skip_block: false,
                 shq_short_dc: false,
             })
-            .to_block()
-            .expect("Invalid block construction"),
+            .to_block(),
         )
     }
 }
