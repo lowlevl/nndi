@@ -1,5 +1,3 @@
-use std::net::SocketAddr;
-
 use crate::{
     io::{
         frame::{
@@ -19,18 +17,15 @@ use super::Sink;
 /// A _peer_ currently connected to a [`Sink`], with all of it's protocol parameters.
 #[derive(Debug, Clone)]
 pub struct Peer {
-    pub addr: SocketAddr,
     pub version: text::Version,
     pub identify: text::Identify,
 }
 
 impl Peer {
-    async fn greet(stream: &mut Stream, config: &Config) -> Result {
+    async fn greet(stream: &mut Stream, config: &Config<'_>) -> Result {
         stream.send(&Frame::version()).await?;
         stream
-            .send(&Frame::identify(
-                config.name.as_deref().unwrap_or("generic sink"),
-            ))
+            .send(&Frame::identify(config.name.unwrap_or("generic sink")))
             .await?;
         stream
             .send(&Frame::video_meta(config.video_quality.clone()))
@@ -45,7 +40,7 @@ impl Peer {
         Ok(())
     }
 
-    pub(super) async fn handshake(stream: &mut Stream, config: &Config) -> Result<Self> {
+    pub(super) async fn handshake(stream: &mut Stream, config: &Config<'_>) -> Result<Self> {
         Self::greet(stream, config).await?;
 
         let mut version = None;
@@ -61,7 +56,6 @@ impl Peer {
             if version.is_some() && identify.is_some() {
                 #[allow(clippy::unwrap_used)] // Checked if the value is Some(T) just before
                 let peer = Self {
-                    addr: stream.peer_addr()?,
                     version: version.take().unwrap(),
                     identify: identify.take().unwrap(),
                 };

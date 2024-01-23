@@ -5,9 +5,9 @@ use super::Sink;
 
 /// Configuration for the [`Sink`] structure.
 #[derive(Debug, Default, Clone)]
-pub struct Config {
+pub struct Config<'s> {
     /// Sink name to advertise over the network, defaults to `receiver`.
-    pub name: Option<String>,
+    pub name: Option<&'s str>,
 
     /// Size of the [`ffmpeg::frame::Video`] queue to be retained until incoming frames are dropped. Set to `0` to disable video streaming.
     pub video_queue: usize,

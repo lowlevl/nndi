@@ -25,18 +25,28 @@ impl Stream {
         Ok(self.stream.flush().await?)
     }
 
-    pub async fn readable(&self) -> Result {
-        Ok(self.stream.get_ref().readable().await?)
-    }
-
-    pub async fn writable(&self) -> Result {
-        Ok(self.stream.get_ref().writable().await?)
-    }
-
     /// Retrieve the next message and convert it to [`Metadata`] if possible, discarding otherwise.
     pub async fn metadata(&mut self) -> Result<Option<Metadata>> {
         match self.recv().await? {
-            Frame::Text(block) => Ok(Some(Metadata::from_block(&block)?)),
+            Frame::Text(block) => match Metadata::from_block(&block) {
+                Ok(metadata) => {
+                    tracing::trace!(
+                        "Received new metadata from peer `{}`: {metadata:?}",
+                        self.peer_addr()?
+                    );
+
+                    Ok(Some(metadata))
+                }
+                Err(_err) => {
+                    tracing::warn!(
+                        "Unhandled metadata recevied from `{}`: {}",
+                        self.peer_addr()?,
+                        block.data
+                    );
+
+                    Ok(None)
+                }
+            },
             _ => Ok(None),
         }
     }

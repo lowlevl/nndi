@@ -30,7 +30,7 @@ pub struct Sink {
 }
 
 impl Sink {
-    pub async fn new(service: &ServiceInfo, config: Config) -> Result<Self> {
+    pub async fn new(service: &ServiceInfo, config: Config<'_>) -> Result<Self> {
         let addresses = service
             .get_addresses()
             .iter()
@@ -43,7 +43,13 @@ impl Sink {
             Peer::handshake(&mut stream, &config),
         )
         .await??;
-        let (video, audio) = Self::task(stream, &config);
+
+        let (videotx, video) = flume::bounded(config.video_queue);
+        let (audiotx, audio) = flume::bounded(config.audio_queue);
+        tokio::spawn(
+            Self::task(stream, videotx, audiotx)
+                .inspect_err(|err| tracing::error!("Fatal error in `Sink::task`: {err}")),
+        );
 
         Ok(Self { peer, video, audio })
     }
@@ -52,54 +58,43 @@ impl Sink {
         &self.peer
     }
 
-    fn task(
+    async fn task(
         mut stream: Stream,
-        config: &Config,
-    ) -> (flume::Receiver<video::Block>, flume::Receiver<audio::Block>) {
-        let (video, videorx) = flume::bounded(config.video_queue);
-        let (audio, audiorx) = flume::bounded(config.audio_queue);
+        video: flume::Sender<video::Block>,
+        audio: flume::Sender<audio::Block>,
+    ) -> Result {
+        loop {
+            if video.is_disconnected() && audio.is_disconnected() {
+                tracing::trace!("All receivers dropped, disconnecting from peer");
 
-        tokio::spawn(
-            async move {
-                loop {
-                    if video.is_disconnected() && audio.is_disconnected() {
-                        tracing::trace!("All receivers dropped, disconnecting from peer");
+                break Ok(());
+            }
 
-                        break;
-                    }
-
-                    match stream.recv().await? {
-                        Frame::Video(block) => {
-                            if let Err(err) = video.try_send(block) {
-                                tracing::debug!("A video block was dropped: {err}");
-                            }
-                        }
-                        Frame::Audio(block) => {
-                            if let Err(err) = audio.try_send(block) {
-                                tracing::debug!("An audio block was dropped: {err}");
-                            }
-                        }
-                        Frame::Text(block) => {
-                            let Ok(info) = Metadata::from_block(&block) else {
-                                tracing::warn!(
-                                    "Unhandled information: {}",
-                                    String::from_utf8_lossy(&block.data)
-                                );
-
-                                continue;
-                            };
-
-                            tracing::warn!("Received information: {info:?}");
-                        }
+            match stream.recv().await? {
+                Frame::Video(block) => {
+                    if let Err(err) = video.try_send(block) {
+                        tracing::debug!("A video block was dropped: {err}");
                     }
                 }
+                Frame::Audio(block) => {
+                    if let Err(err) = audio.try_send(block) {
+                        tracing::debug!("An audio block was dropped: {err}");
+                    }
+                }
+                Frame::Text(block) => {
+                    let Ok(info) = Metadata::from_block(&block) else {
+                        tracing::warn!(
+                            "Unhandled information: {}",
+                            String::from_utf8_lossy(&block.data)
+                        );
 
-                Ok::<_, crate::Error>(())
+                        continue;
+                    };
+
+                    tracing::warn!("Received information: {info:?}");
+                }
             }
-            .inspect_err(|err| tracing::error!("Fatal error in `Sink::task`: {err}")),
-        );
-
-        (videorx, audiorx)
+        }
     }
 
     /// Iterate over incoming [`video::Block`]s.
