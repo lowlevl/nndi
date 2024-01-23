@@ -1,6 +1,9 @@
 use crate::{
     io::{
-        frame::text::{self, Metadata},
+        frame::{
+            text::{self, Metadata},
+            Frame,
+        },
         Stream,
     },
     Result,
@@ -20,52 +23,20 @@ pub struct Peer {
 
 impl Peer {
     async fn greet(stream: &mut Stream, config: &Config) -> Result<()> {
+        stream.send(&Frame::version()).await?;
         stream
-            .send(
-                &Metadata::Version(text::Version {
-                    video: 5,
-                    audio: 4,
-                    text: 3,
-                    sdk: crate::SDK_VERSION.into(),
-                    platform: crate::SDK_PLATFORM.into(),
-                })
-                .to_block()?
-                .into(),
-            )
+            .send(&Frame::identify(
+                config.name.as_deref().unwrap_or("generic sink"),
+            ))
             .await?;
-
         stream
-            .send(
-                &Metadata::Identify(text::Identify {
-                    name: crate::name(config.name.as_deref().unwrap_or("receiver")),
-                })
-                .to_block()?
-                .into(),
-            )
+            .send(&Frame::video_meta(config.video_quality.clone()))
             .await?;
-
         stream
-            .send(
-                &Metadata::Video(text::Video {
-                    quality: config.video_quality.clone(),
-                })
-                .to_block()?
-                .into(),
-            )
-            .await?;
-
-        stream
-            .send(
-                &Metadata::EnabledStreams(text::EnabledStreams {
-                    video: config.video_queue != 0,
-                    audio: config.audio_queue != 0,
-                    text: true,
-                    shq_skip_block: false,
-                    shq_short_dc: false,
-                })
-                .to_block()?
-                .into(),
-            )
+            .send(&Frame::enabled_streams(
+                config.video_queue != 0,
+                config.audio_queue != 0,
+            ))
             .await?;
 
         Ok(())

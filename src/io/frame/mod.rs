@@ -40,6 +40,52 @@ impl Frame {
 
         Ok((kind, header, data))
     }
+
+    pub fn version() -> Self {
+        Self::Text(
+            text::Metadata::Version(text::Version {
+                video: 5,
+                audio: 4,
+                text: 3,
+                sdk: crate::SDK_VERSION.into(),
+                platform: crate::SDK_PLATFORM.into(),
+            })
+            .to_block()
+            .expect("Invalid block construction"),
+        )
+    }
+
+    pub fn identify(name: &str) -> Self {
+        Self::Text(
+            text::Metadata::Identify(text::Identify {
+                name: crate::name(name),
+            })
+            .to_block()
+            .expect("Invalid block construction"),
+        )
+    }
+
+    pub fn video_meta(quality: text::VideoQuality) -> Self {
+        Self::Text(
+            text::Metadata::Video(text::Video { quality })
+                .to_block()
+                .expect("Invalid block construction"),
+        )
+    }
+
+    pub fn enabled_streams(video: bool, audio: bool) -> Self {
+        Self::Text(
+            text::Metadata::EnabledStreams(text::EnabledStreams {
+                video,
+                audio,
+                text: true,
+                shq_skip_block: false,
+                shq_short_dc: false,
+            })
+            .to_block()
+            .expect("Invalid block construction"),
+        )
+    }
 }
 
 impl FrameKind {
