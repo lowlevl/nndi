@@ -1,6 +1,7 @@
 use std::net::SocketAddr;
 
 use ffmpeg::codec;
+use futures::TryFutureExt;
 use itertools::Itertools;
 use mdns_sd::ServiceInfo;
 use tokio::net::TcpStream;
@@ -58,48 +59,45 @@ impl Sink {
         let (video, videorx) = flume::bounded(config.video_queue);
         let (audio, audiorx) = flume::bounded(config.audio_queue);
 
-        let task = async move {
-            loop {
-                if video.is_disconnected() && audio.is_disconnected() {
-                    tracing::trace!("All receivers dropped, disconnecting from peer");
+        tokio::spawn(
+            async move {
+                loop {
+                    if video.is_disconnected() && audio.is_disconnected() {
+                        tracing::trace!("All receivers dropped, disconnecting from peer");
 
-                    break;
-                }
+                        break;
+                    }
 
-                match stream.recv().await? {
-                    Frame::Video(block) => {
-                        if let Err(err) = video.try_send(block) {
-                            tracing::debug!("A video block was dropped: {err}");
+                    match stream.recv().await? {
+                        Frame::Video(block) => {
+                            if let Err(err) = video.try_send(block) {
+                                tracing::debug!("A video block was dropped: {err}");
+                            }
+                        }
+                        Frame::Audio(block) => {
+                            if let Err(err) = audio.try_send(block) {
+                                tracing::debug!("An audio block was dropped: {err}");
+                            }
+                        }
+                        Frame::Text(block) => {
+                            let Ok(info) = Metadata::from_block(&block) else {
+                                tracing::warn!(
+                                    "Unhandled information: {}",
+                                    String::from_utf8_lossy(&block.data)
+                                );
+
+                                continue;
+                            };
+
+                            tracing::warn!("Received information: {info:?}");
                         }
                     }
-                    Frame::Audio(block) => {
-                        if let Err(err) = audio.try_send(block) {
-                            tracing::debug!("An audio block was dropped: {err}");
-                        }
-                    }
-                    Frame::Text(block) => {
-                        let Ok(info) = Metadata::from_block(&block) else {
-                            tracing::warn!(
-                                "Unhandled information: {}",
-                                String::from_utf8_lossy(&block.data)
-                            );
-
-                            continue;
-                        };
-
-                        tracing::warn!("Received information: {info:?}");
-                    }
                 }
-            }
 
-            Ok::<_, crate::Error>(())
-        };
-
-        tokio::spawn(async {
-            if let Err(err) = task.await {
-                tracing::error!("Fatal error in the `Sink::task` thread: {err}");
+                Ok::<_, crate::Error>(())
             }
-        });
+            .inspect_err(|err| tracing::error!("Fatal error in `Sink::task`: {err}")),
+        );
 
         (videorx, audiorx)
     }

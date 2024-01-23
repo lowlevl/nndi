@@ -1,3 +1,5 @@
+use std::net::SocketAddr;
+
 use crate::{
     io::{
         frame::{
@@ -17,12 +19,13 @@ use super::Sink;
 /// A _peer_ currently connected to a [`Sink`], with all of it's protocol parameters.
 #[derive(Debug, Clone)]
 pub struct Peer {
+    pub addr: SocketAddr,
     pub version: text::Version,
     pub identify: text::Identify,
 }
 
 impl Peer {
-    async fn greet(stream: &mut Stream, config: &Config) -> Result<()> {
+    async fn greet(stream: &mut Stream, config: &Config) -> Result {
         stream.send(&Frame::version()).await?;
         stream
             .send(&Frame::identify(
@@ -50,14 +53,15 @@ impl Peer {
 
         loop {
             match stream.metadata().await? {
-                Metadata::Version(value) => version = Some(value),
-                Metadata::Identify(value) => identify = Some(value),
+                Some(Metadata::Version(value)) => version = Some(value),
+                Some(Metadata::Identify(value)) => identify = Some(value),
                 _ => continue,
             }
 
             if version.is_some() && identify.is_some() {
                 #[allow(clippy::unwrap_used)] // Checked if the value is Some(T) just before
                 let peer = Self {
+                    addr: stream.peer_addr()?,
                     version: version.take().unwrap(),
                     identify: identify.take().unwrap(),
                 };

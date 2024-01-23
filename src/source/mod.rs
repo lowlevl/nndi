@@ -1,15 +1,13 @@
-use std::{
-    net::TcpListener,
-    sync::{Arc, RwLock, Weak},
-    thread,
-};
+use std::sync::{Arc, Weak};
 
 use ffmpeg::codec;
+use futures::{StreamExt, TryFutureExt};
 use mdns_sd::{ServiceDaemon, ServiceInfo, UnregisterStatus};
+use tokio::{net::TcpListener, sync::RwLock};
 
 use crate::{
     io::{frame::text, Stream},
-    Result,
+    Error, Result,
 };
 
 mod config;
@@ -30,9 +28,9 @@ pub struct Source {
 }
 
 impl Source {
-    pub fn new(config: Config<'_>) -> Result<Self> {
+    pub async fn new(config: Config<'_>) -> Result<Self> {
         let groups = config.groups.unwrap_or(&["public"]).join(",");
-        let listener = TcpListener::bind("[::]:0")?;
+        let listener = TcpListener::bind("[::]:0").await?;
 
         let mdns = ServiceDaemon::new()?;
         let service = ServiceInfo::new(
@@ -51,90 +49,87 @@ impl Source {
         tracing::debug!("Registered mDNS service `{}`", name);
 
         let peers = <Lock<Vec<WeakLock<Peer>>>>::default();
-        Self::listen(listener, peers.clone());
+        tokio::spawn(
+            Self::listen(listener, peers.clone())
+                .inspect_err(|err| tracing::error!("Fatal error in `Source::listener`: {err}")),
+        );
 
         Ok(Self { name, mdns, peers })
     }
 
-    fn listen(listener: TcpListener, peers: Lock<Vec<WeakLock<Peer>>>) {
-        let task = move || loop {
-            match listener.accept() {
-                Ok((stream, addr)) => {
+    async fn listen(listener: tokio::net::TcpListener, peers: Lock<Vec<WeakLock<Peer>>>) -> Result {
+        let mut streams: Vec<(Lock<Peer>, Stream)> = Vec::new();
+
+        loop {
+            tokio::select! {
+                accepted = listener.accept() => {
+                    let (stream, addr) = accepted?;
                     let mut stream = stream.into();
-                    let peer = match Peer::handshake(&mut stream, std::time::Duration::from_secs(3))
-                    {
-                        Ok(peer) => peer,
-                        Err(err) => {
-                            tracing::warn!(
-                                "Unable to perform handshake with peer at `{addr}`: {err}",
-                            );
 
-                            continue;
-                        }
-                    };
+                    let peer = tokio::time::timeout(
+                        crate::HANDSHAKE_TIMEOUT,
+                        Peer::handshake(addr, &mut stream)
+                    )
+                    .await??;
+                    let peer = Arc::from(RwLock::new(peer));
 
-                    let peer: Lock<_> = RwLock::new(peer).into();
-                    peers
-                        .write()
-                        .expect("Poisonned atomic lock, aborting.")
-                        .push(Arc::downgrade(&peer));
-
-                    Self::peer(peer, stream)
+                    peers.write().await.push(Arc::downgrade(&peer));
+                    streams.push((peer, stream));
                 }
-                Err(err) => tracing::error!("Error while accepting connection: {err}"),
-            }
-        };
+                Some(stream) = async {
+                    let mut readable = streams
+                        .iter_mut()
+                        .map(|(peer, stream)| async { stream.readable().await.map(|_| (peer, stream)) })
+                        .collect::<futures::stream::FuturesUnordered<_>>();
 
-        thread::spawn(task);
-    }
+                    readable.next().await
+                } => {
+                    let res: Result = async {
+                        let (peer, stream) = stream?;
 
-    fn peer(peer: Lock<Peer>, mut stream: Stream) {
-        let mut task = move || -> Result<()> {
-            loop {
-                peer.write()
-                    .expect("Poisonned atomic lock, aborting.")
-                    .tick(&mut stream)?;
-            }
-        };
+                        if let Some(text::Metadata::Tally(tally)) = stream.metadata().await? {
+                            peer.write().await.tally = tally;
+                        }
 
-        thread::spawn(move || {
-            if let Err(err) = task() {
-                tracing::error!("Fatal error in the `Source::peer` thread: {err}");
+                        Ok(())
+                    }.await;
+
+                    if let Err(err) = res {
+                       tracing::error!("Peer handling failed: {err}");
+
+                        //TODO: handle disconnect
+                    }
+                }
             }
-        });
+        }
     }
 
     /// List the peers currently connected to the [`Source`], with their parameters.
-    pub fn peers(&self) -> Vec<Peer> {
+    pub async fn peers(&self) -> Vec<Peer> {
         let pointers: Vec<_> = self
             .peers
             .read()
-            .expect("Poisonned atomic lock, aborting.")
+            .await
             .iter()
             .filter_map(Weak::upgrade)
             .collect();
 
-        let peers = pointers
-            .iter()
-            .map(|peer| {
-                peer.read()
-                    .expect("Poisonned atomic lock, aborting.")
-                    .clone()
-            })
-            .collect();
+        let peers = futures::future::join_all(
+            pointers
+                .iter()
+                .map(|peer| async { peer.read().await.clone() }),
+        )
+        .await;
 
-        *self
-            .peers
-            .write()
-            .expect("Poisonned atomic lock, aborting.") =
-            pointers.iter().map(Arc::downgrade).collect();
+        *self.peers.write().await = pointers.iter().map(Arc::downgrade).collect();
 
         peers
     }
 
     /// Get current _tally_ information computed from all the connected peers of the [`Source`].
-    pub fn tally(&self) -> text::Tally {
+    pub async fn tally(&self) -> text::Tally {
         self.peers()
+            .await
             .into_iter()
             .fold(Default::default(), |current, peer| current | peer.tally)
     }
@@ -144,7 +139,7 @@ impl Source {
         &self,
         frame: &ffmpeg::frame::Video,
         timebase: ffmpeg::sys::AVRational,
-    ) -> Result<()> {
+    ) -> Result {
         let mut converted = ffmpeg::frame::Video::new(
             ffmpeg::format::Pixel::YUV422P,
             frame.width(),
@@ -181,11 +176,7 @@ impl Source {
     }
 
     /// Broadcast a [`ffmpeg::frame::Audio`] to all the connected peers.
-    pub fn broadcast_audio(
-        &self,
-        frame: &ffmpeg::frame::Audio,
-        timebase: ffmpeg::sys::AVRational,
-    ) -> Result<()> {
+    pub fn broadcast_audio(&self, frame: &ffmpeg::frame::Audio) -> Result {
         todo!("Broadcast an audio frame")
     }
 }

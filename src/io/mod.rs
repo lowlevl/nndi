@@ -38,7 +38,7 @@ impl Packet {
         })
     }
 
-    pub async fn write(&self, mut stream: impl tokio::io::AsyncWrite + Unpin) -> Result<()> {
+    pub async fn write(&self, mut stream: impl tokio::io::AsyncWrite + Unpin) -> Result {
         stream.write_u16_le(self.version | 0x8000).await?;
         stream.write_u16_le(self.kind as u16).await?;
         stream.write_u32_le(self.header_size as u32).await?;

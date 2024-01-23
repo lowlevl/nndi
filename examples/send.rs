@@ -1,7 +1,8 @@
 use nndi::{ffmpeg, Source};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
-pub fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Set-up the log and traces handler
     tracing_subscriber::registry()
         .with(fmt::layer())
@@ -11,7 +12,8 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let source = Source::new(nndi::source::Config {
         name: "super source",
         ..Default::default()
-    })?;
+    })
+    .await?;
 
     let timebase = ffmpeg::sys::AVRational { num: 1, den: 1 };
     let mut frame = ffmpeg::frame::Video::new(ffmpeg::format::Pixel::RGBA, 600, 360);
@@ -26,8 +28,8 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         tracing::info!(
             "Currently connected peers: {} (tally: {:?})",
-            source.peers().len(),
-            source.tally()
+            source.peers().await.len(),
+            source.tally().await
         );
 
         idx += 1;
