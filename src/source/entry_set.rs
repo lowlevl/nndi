@@ -31,13 +31,9 @@ impl<T, const N: usize> EntrySet<T, N> {
     }
 
     pub fn iter_mut(&mut self) -> impl Iterator<Item = OccupiedEntry<'_, T>> {
-        self.slots.iter_mut().filter_map(|entry| {
-            if entry.is_vacant() {
-                None
-            } else {
-                Some(OccupiedEntry(entry))
-            }
-        })
+        self.slots
+            .iter_mut()
+            .filter_map(|entry| entry.is_occupied().then_some(OccupiedEntry(entry)))
     }
 }
 
