@@ -7,7 +7,7 @@ use tokio::{net::TcpListener, sync::RwLock};
 
 use crate::{
     io::{
-        frame::{text, video, Frame},
+        frame::{text, video, Frame, FrameKind},
         Stream,
     },
     Error, Result,
@@ -131,8 +131,17 @@ impl Source {
                                 let frame = &frame;
 
                                 async move {
-                                    if entry.0.read().await.streams.video {
+                                    let peer = entry.0.read().await;
+
+                                    if (peer.streams.text && matches!(frame, Frame::Text { .. }))
+                                        || (peer.streams.video && matches!(frame, Frame::Video { .. }))
+                                        || (peer.streams.audio && matches!(frame, Frame::Audio { .. })) {
+                                        tracing::trace!("-> sending {:?} frame to `{}`", FrameKind::from(frame), peer.identify.name);
+
+                                        drop(peer);
                                         entry.1.send(frame).await.ok();
+                                    } else {
+                                        tracing::trace!("-x-> skip sending {:?} frame to `{}`", FrameKind::from(frame), peer.identify.name);
                                     }
                                 }
                             })
@@ -202,25 +211,19 @@ impl Source {
         let mut packet = ffmpeg::Packet::empty();
         encoder.receive_packet(&mut packet)?;
 
-        tracing::error!("PAK SIZE: {:?}", packet.data().map(<[u8]>::len));
         self.frames
             .send_async(Frame::video(
                 video::Spec {
                     fourcc: video::FourCCVideoType::SHQ2,
-                    width: frame.width(),
-                    height: frame.height(),
+                    width: converted.width(),
+                    height: converted.height(),
                     fps_num: timebase.num as u32,
                     fps_den: timebase.den as u32,
-                    aspect_ratio: frame.aspect_ratio().numerator() as f32
-                        / frame.aspect_ratio().denominator() as f32,
-                    _1: Default::default(),
+                    aspect_ratio: converted.aspect_ratio().numerator() as f32
+                        / converted.aspect_ratio().denominator() as f32,
                     frame_format: video::FrameFormat::Progressive,
-                    _2: Default::default(),
-                    _3: Default::default(),
-                    timecode: 0,
-                    _4: Default::default(),
-                    _5: Default::default(),
-                    metadata: Default::default(),
+                    timestamp: chrono::Utc::now().into(),
+                    ..Default::default()
                 },
                 packet.data().expect("No packet data ??").to_vec(),
             ))

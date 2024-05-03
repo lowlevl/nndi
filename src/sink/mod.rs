@@ -108,6 +108,8 @@ impl Sink {
             .map(|block| {
                 let block = block.map_err(|_| Error::ClosedChannel)?;
 
+                tracing::trace!("<- new block {block:?} from `{}`", self.peer.identify.name);
+
                 let mut context = codec::Context::new();
                 // SAFETY: The pointer is allocated on the line before,
                 // and is guaranteed to be exclusive with `as_mut_ptr`.

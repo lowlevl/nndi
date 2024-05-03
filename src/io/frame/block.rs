@@ -5,10 +5,19 @@ use binrw::{
 
 use crate::Result;
 
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 pub struct Block<H, D> {
     pub header: H,
     pub data: D,
+}
+
+impl<H: std::fmt::Debug, D: std::fmt::Debug> std::fmt::Debug for Block<H, D> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Block")
+            .field("header", &self.header)
+            .field("data", &"...")
+            .finish()
+    }
 }
 
 impl<H: Default, D> Block<H, D> {
