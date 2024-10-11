@@ -3,6 +3,7 @@ use std::sync::{Arc, Weak};
 use ffmpeg::codec;
 use futures::{StreamExt, TryFutureExt};
 use mdns_sd::{ServiceDaemon, ServiceInfo, UnregisterStatus};
+use slab::Slab;
 use tokio::{net::TcpListener, sync::RwLock};
 
 use crate::{
@@ -18,9 +19,6 @@ pub use config::Config;
 
 mod peer;
 pub use peer::Peer;
-
-mod entry_set;
-use entry_set::EntrySet;
 
 type Lock<T> = Arc<RwLock<T>>;
 type WeakLock<T> = Weak<RwLock<T>>;
@@ -76,7 +74,7 @@ impl Source {
         peers: Lock<Vec<WeakLock<Peer>>>,
         frames: flume::Receiver<Frame>,
     ) -> Result {
-        let mut streams: EntrySet<(Lock<Peer>, Stream), 32> = Default::default();
+        let mut streams: Slab<(Lock<Peer>, Stream)> = Slab::with_capacity(32);
 
         loop {
             tokio::select! {
@@ -93,32 +91,30 @@ impl Source {
                     let peer = Arc::from(RwLock::new(peer));
 
                     peers.write().await.push(Arc::downgrade(&peer));
-                    streams.push((peer, stream));
+                    streams.insert((peer, stream));
                 }
 
                 // Receive metadata from peers
                 Some(mut entry) = async {
                     let mut readable = streams
                         .iter_mut()
-                        .map(|entry| async { entry.1.readable().await.ok(); entry })
+                        .map(|(idx, entry)| async move { entry.1.readable().await.ok(); (idx, entry) })
                         .collect::<futures::stream::FuturesUnordered<_>>();
 
                     readable.next().await
                 } => {
-                    let result: Result = async {
-                        let (peer, stream) = &mut *entry;
+                    let (idx, (peer, stream)) = &mut entry;
 
-                        if let Some(text::Metadata::Tally(tally)) = stream.metadata().await? {
+                    match stream.metadata().await {
+                        Ok(Some(text::Metadata::Tally(tally))) => {
                             peer.write().await.tally = tally;
                         }
+                        Ok(other) => tracing::debug!("Ignored metadata from peer: {other:?}"),
+                        Err(err) => {
+                            tracing::error!("Peer handling failed: {err}");
 
-                        Ok(())
-                    }.await;
-
-                    if let Err(err) = result {
-                        tracing::error!("Peer handling failed: {err}");
-
-                        entry.clear();
+                            streams.remove(*idx);
+                        }
                     }
                 }
 
@@ -127,11 +123,11 @@ impl Source {
                     futures::future::join_all(
                         streams
                             .iter_mut()
-                            .map(|mut entry| {
+                            .map(|(_, entry)| {
                                 let frame = &frame;
 
                                 async move {
-                                    let (ref mut peer, ref mut stream) = *entry;
+                                    let (peer, stream) = entry;
                                     let peer = peer.read().await;
 
                                     if (peer.streams.text && matches!(frame, Frame::Text { .. }))
