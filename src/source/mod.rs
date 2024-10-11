@@ -131,15 +131,16 @@ impl Source {
                                 let frame = &frame;
 
                                 async move {
-                                    let peer = entry.0.read().await;
+                                    let (ref mut peer, ref mut stream) = *entry;
+                                    let peer = peer.read().await;
 
                                     if (peer.streams.text && matches!(frame, Frame::Text { .. }))
                                         || (peer.streams.video && matches!(frame, Frame::Video { .. }))
                                         || (peer.streams.audio && matches!(frame, Frame::Audio { .. })) {
-                                        tracing::trace!("-> sending {:?} frame to `{}`", FrameKind::from(frame), peer.identify.name);
+                                        tracing::trace!("-> sending {:?} frame to `{}`", frame, peer.identify.name);
 
                                         drop(peer);
-                                        entry.1.send(frame).await.ok();
+                                        stream.send(frame).await.ok();
                                     } else {
                                         tracing::trace!("-x-> skip sending {:?} frame to `{}`", FrameKind::from(frame), peer.identify.name);
                                     }
@@ -188,6 +189,12 @@ impl Source {
         frame: &ffmpeg::frame::Video,
         timebase: ffmpeg::sys::AVRational,
     ) -> Result {
+        assert!(
+            frame.width() % 16 == 0,
+            "SpeedHQ frame width must be a multiple of 16, was `{}`",
+            frame.width()
+        );
+
         let mut converted = ffmpeg::frame::Video::new(
             ffmpeg::format::Pixel::YUV422P,
             frame.width(),
@@ -219,8 +226,7 @@ impl Source {
                     height: converted.height(),
                     fps_num: timebase.num as u32,
                     fps_den: timebase.den as u32,
-                    aspect_ratio: converted.aspect_ratio().numerator() as f32
-                        / converted.aspect_ratio().denominator() as f32,
+                    aspect_ratio: converted.width() as f32 / converted.height() as f32,
                     frame_format: video::FrameFormat::Progressive,
                     timestamp: chrono::Utc::now().into(),
                     ..Default::default()

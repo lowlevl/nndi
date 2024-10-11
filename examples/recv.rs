@@ -1,6 +1,8 @@
 use nndi::{Scan, Sink};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
+pub extern crate ffmpeg_next as ffmpeg;
+
 #[tokio::main]
 pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ffmpeg_next::init()?;
@@ -45,10 +47,16 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let video = video.expect("Unable to decode `video` frame");
 
                 tracing::warn!(
-                    "#{idx}: {:?}, {}px x {}px",
+                    "#{idx}: {:?}, {}px x {}px kind: {:?}\nspace: {:?}, primaries: {:?}, characteristics: {:?}, chroma location: {:?}\nplanes: {}",
                     video.format(),
                     video.width(),
                     video.height(),
+                    video.kind(),
+                    video.color_space(),
+                    video.color_primaries(),
+                    video.color_transfer_characteristic(),
+                    video.chroma_location(),
+                    video.planes(),
                 );
             }
         }

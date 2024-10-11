@@ -17,12 +17,14 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     })
     .await?;
 
-    let timebase = ffmpeg::sys::AVRational { num: 1, den: 1 };
-    let mut frame = ffmpeg::frame::Video::new(ffmpeg::format::Pixel::RGBA, 600, 360);
-    frame.data_mut(0).fill(u8::MAX);
+    let timebase = ffmpeg::sys::AVRational { num: 1, den: 30 };
+    let mut frame = ffmpeg::frame::Video::new(ffmpeg::format::Pixel::RGB24, 1920, 1080);
+    for pix in frame.plane_mut(0) {
+        *pix = (100, 0, 200);
+    }
 
     loop {
-        std::thread::sleep(std::time::Duration::from_secs(1));
+        std::thread::sleep(std::time::Duration::from_millis(500));
 
         source.broadcast_video(&frame, timebase).await?;
 
