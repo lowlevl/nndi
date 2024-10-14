@@ -17,7 +17,10 @@ use super::Sink;
 /// A _peer_ currently connected to a [`Sink`], with all of it's protocol parameters.
 #[derive(Debug, Clone)]
 pub struct Peer {
+    /// The software _version_ of the peer.
     pub version: text::Version,
+
+    /// The _name_ of the peer.
     pub identify: text::Identify,
 }
 

@@ -46,50 +46,78 @@ impl Metadata {
     }
 }
 
+/// Metadata definition for _version_ in the protocol.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Version {
+    /// Version number of _text_ frames.
     #[serde(rename = "@text")]
     pub text: u16,
+
+    /// Version number of _video_ frames.
     #[serde(rename = "@video")]
     pub video: u16,
+
+    /// Version number of _audio_ frames.
     #[serde(rename = "@audio")]
     pub audio: u16,
+
+    /// Version of the _SDK_.
     #[serde(rename = "@sdk")]
     pub sdk: String,
+
+    /// Platform running the _SDK_.
     #[serde(rename = "@platform")]
     pub platform: String,
 }
 
+/// Metadata definition for _identification_ in the protocol.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Identify {
+    /// The name of the peer.
     #[serde(rename = "@name")]
     pub name: String,
 }
 
+/// Metadata definition for _video_ in the protocol.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Video {
+    /// The requested _quality_ of the video stream.
     #[serde(rename = "@quality")]
     pub quality: VideoQuality,
 }
 
+/// Different video qualities available in the protocol.
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum VideoQuality {
+    /// High definition video stream.
     #[default]
     High,
+
+    /// Low definition video stream.
     Low,
 }
 
+/// Metadata definition for _enabled streams_ in the protocol.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnabledStreams {
+    /// Whether _text_ streams are supported.
     #[serde(rename = "@text")]
     pub text: bool,
+
+    /// Whether _video_ streams are supported.
     #[serde(rename = "@video")]
     pub video: bool,
+
+    /// Whether _audio_ streams are supported.
     #[serde(rename = "@audio")]
     pub audio: bool,
+
+    /// Whether SpeedHQ skip-block is supported.
     #[serde(rename = "@shq_skip_block")]
     pub shq_skip_block: bool,
+
+    /// Whether SpeedHQ short-DC is supported.
     #[serde(rename = "@shq_short_dc")]
     pub shq_short_dc: bool,
 }
@@ -116,10 +144,14 @@ pub enum ConnectionState {
     Down,
 }
 
+/// Metadata definition for _tally_ in the protocol.
 #[derive(Debug, Default, Clone, BitOr, Serialize, Deserialize)]
 pub struct Tally {
+    /// Whether we currently are _on program_.
     #[serde(rename = "@on_program")]
     pub on_program: bool,
+
+    /// Whether we currently are _on preview_.
     #[serde(rename = "@on_preview")]
     pub on_preview: bool,
 }

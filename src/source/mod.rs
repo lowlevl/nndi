@@ -1,3 +1,5 @@
+//! Everything related to NDI [`Source`]s, to send video.
+
 use std::sync::{Arc, Weak};
 
 use ffmpeg::codec;
@@ -33,6 +35,7 @@ pub struct Source {
 }
 
 impl Source {
+    /// Expose a new [`Source`] based on the provided `config` on the network.
     pub async fn new(config: Config) -> Result<Self> {
         let groups = config.groups.as_deref().unwrap_or(&["public"]).join(",");
         let listener = TcpListener::bind("[::]:0").await?;
@@ -55,6 +58,7 @@ impl Source {
 
         let peers = <Lock<Vec<WeakLock<Peer>>>>::default();
         let (frames, framesrx) = flume::bounded(1);
+
         tokio::spawn(
             Self::listen(listener, config, peers.clone(), framesrx)
                 .inspect_err(|err| tracing::error!("Fatal error in `Source::listener`: {err}")),
@@ -183,7 +187,7 @@ impl Source {
     pub async fn broadcast_video(
         &self,
         frame: &ffmpeg::frame::Video,
-        timebase: ffmpeg::sys::AVRational,
+        framerate: ffmpeg::Rational,
     ) -> Result {
         assert!(
             frame.width() % 16 == 0,
@@ -196,18 +200,18 @@ impl Source {
             frame.width(),
             frame.height(),
         );
+
         frame
             .converter(converted.format())?
             .run(frame, &mut converted)?;
 
-        let mut encoder = codec::Context::new().encoder().video()?;
-        encoder.set_time_base(timebase);
-        encoder.set_format(converted.format());
-        encoder.set_width(converted.width());
-        encoder.set_height(converted.height());
+        let mut context = codec::Context::new().encoder().video()?;
+        context.set_time_base(framerate);
+        context.set_format(converted.format());
+        context.set_width(converted.width());
+        context.set_height(converted.height());
 
-        let mut encoder = encoder.open_as(codec::encoder::find(codec::Id::SPEEDHQ))?;
-
+        let mut encoder = context.open_as(codec::encoder::find(codec::Id::SPEEDHQ))?;
         encoder.send_frame(&converted)?;
         encoder.send_eof()?;
 
@@ -220,8 +224,8 @@ impl Source {
                     fourcc: video::FourCCVideoType::SHQ2,
                     width: converted.width(),
                     height: converted.height(),
-                    fps_num: timebase.num as u32,
-                    fps_den: timebase.den as u32,
+                    fps_num: framerate.numerator() as u32,
+                    fps_den: framerate.denominator() as u32,
                     aspect_ratio: converted.width() as f32 / converted.height() as f32,
                     frame_format: video::FrameFormat::Progressive,
                     timestamp: chrono::Utc::now().into(),

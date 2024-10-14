@@ -1,6 +1,9 @@
 #![doc = include_str!("../README.md")]
+//!
+
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![warn(
+    missing_docs,
     clippy::unwrap_used,
     clippy::panic,
     clippy::unimplemented,
@@ -44,5 +47,7 @@ pub mod source;
 pub use source::Source;
 
 pub mod metadata {
+    //! Metadata entries for the NDI sources.
+
     pub use crate::io::frame::text::{EnabledStreams, Identify, Tally, Version, VideoQuality};
 }

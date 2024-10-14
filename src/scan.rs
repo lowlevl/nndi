@@ -12,6 +12,7 @@ pub struct Scan {
 }
 
 impl Scan {
+    /// Create a new source scanner over the network.
     pub fn new() -> Result<Self> {
         let mdns = ServiceDaemon::new()?;
         let receiver = mdns.browse(super::SERVICE_TYPE)?;
@@ -23,6 +24,7 @@ impl Scan {
         })
     }
 
+    /// Iterate over the retrieved _sources_ in the mDNS.
     pub fn sources(&mut self) -> impl Iterator<Item = &ServiceInfo> {
         for event in self.receiver.try_iter() {
             match event {

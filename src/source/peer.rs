@@ -16,10 +16,19 @@ use super::Source;
 /// A _peer_ currently connected to a [`Source`], with all of it's protocol parameters.
 #[derive(Debug, Clone)]
 pub struct Peer {
+    /// The software _version_ of the peer.
     pub version: text::Version,
+
+    /// The _name_ of the peer.
     pub identify: text::Identify,
+
+    /// The _enabled streams_ of the peer.
     pub streams: text::EnabledStreams,
+
+    /// The _stream quality_ of the peer.
     pub quality: text::VideoQuality,
+
+    /// The _tally_ of the peer.
     pub tally: text::Tally,
 }
 

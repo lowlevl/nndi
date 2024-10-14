@@ -1,3 +1,5 @@
+//! Everything related to NDI [`Sink`]s, to receive video.
+
 use std::net::SocketAddr;
 
 use ffmpeg::codec;
@@ -30,6 +32,7 @@ pub struct Sink {
 }
 
 impl Sink {
+    /// Create a new [`Sink`] based on the provided `config` and `service` entry.
     pub async fn new(service: &ServiceInfo, config: Config<'_>) -> Result<Self> {
         let addresses = service
             .get_addresses()
@@ -54,6 +57,7 @@ impl Sink {
         Ok(Self { peer, video, audio })
     }
 
+    /// Access the source [`Peer`] definition.
     pub fn peer(&self) -> &Peer {
         &self.peer
     }
