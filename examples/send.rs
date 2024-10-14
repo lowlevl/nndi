@@ -17,14 +17,14 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     })
     .await?;
 
-    let timebase = ffmpeg::sys::AVRational { num: 1, den: 30 };
+    let timebase = ffmpeg::Rational::new(1, 30);
     let mut frame = ffmpeg::frame::Video::new(ffmpeg::format::Pixel::RGB24, 1920, 1080);
 
     let mut idx = 0u8;
 
     loop {
         std::thread::sleep(std::time::Duration::from_millis(
-            (1000 * timebase.num / timebase.den) as u64,
+            (1000 * timebase.numerator() / timebase.denominator()) as u64,
         ));
 
         for pix in frame.plane_mut(0) {
